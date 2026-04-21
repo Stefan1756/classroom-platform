@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <header class="header">
+        <div class="logo">Classroom</div>
+
+        <div class="header-actions">
+            <div class="notification-box">
+            <span class="material-icons" id="notificationIcon">notifications</span>
+            <span id="notificationBadge" class="badge">0</span>
+        </div>
+
+            <img src="data:image/jpeg;base64,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" class="profile" id="profileBtn" />
+        </div>
+    </header>
+
+    <div class="notification-panel" id="notificationPanel">
+        <div class="panel-content">
+            <h4>Notifications</h4>
+            <div id="notificationList"></div>
+        </div>
+    </div>
+
+    <main class="content" id="contentArea"></main>
+
+    <nav class="bottom-nav">
+
+        <div class="nav-item" data-page="users">
+            <span class="material-icons">group</span>
+            <p>Users</p>
+        </div>
+
+        <div class="nav-item center" data-page="dashboard">
+            <span class="material-icons">dashboard</span>
+        </div>
+
+        <div class="nav-item" data-page="settings">
+            <span class="material-icons">settings</span>
+            <p>Settings</p>
+        </div>
+    </nav>
+
+    <div class="bottom-sheet" id="bottomSheet">
+        <div class="sheet-content">
+            <div class="drag-bar"></div>
+            <p>Add Profile Picture</p>
+            <p id="logoutBtn">Sign Out</p>
+        </div>
+    </div>
+
+    <div class="user-modal" id="userModal">
+        <div class="modal-content">
+            <span class="close-btn" id="closeModal">X</span>
+
+            <div class="user-header">
+                <div class="avatar" id="userAvatar"></div>
+                <h3 id="modalUsername"></h3>
+                <p id="modalEmail"></p>
+            </div>
+
+            <div class="user-details">
+                <p><strong>Role:</strong> <span id="modalRole"></span></p>
+                <p><strong>Status:</strong> <span id="modalStatus"></span></p>
+            </div>
+
+            <div class="modal-actions" id="modalActions">
+                
+            </div>
+        </div>
+    </div>
+
+    <div class="user-modal" id="adminModal">
+        <div class="modal-content">
+            <span id="closeAdminModal">X</span>
+
+            <h3>Admin Profile</h3>
+            <p id="adminEmail"></p>
+            <p id="adminJoinDate"></p>
+        </div>
+    </div>
+
+    <script type="module" src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+    <script type="module" src="admin-users.js"></script>
+    <script type="module" src="admin.js"></script>
+    
+</body>
+</html>

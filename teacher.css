@@ -1,0 +1,373 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+
+input {
+    user-select: auto;
+    -webkit-user-select: auto;
+}
+
+a:hover{
+    color: #5d3fd3;
+}
+
+.nav-item, a, div {
+    -webkit-tap-highlight-color: transparent;
+}
+
+.nav-item::active {
+    transform: scale(0.97);
+    opacity: 0.9;
+}
+
+body {
+    background: #f5f6fa;
+    color: #111;
+}
+
+.header {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    height: 60px;
+    background: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 15px;
+    border-bottom: 1px solid #eee;
+    z-index: 1000;
+}
+
+.logo {
+    font-weight: 600;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.profile {
+    width: 35px;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.content {
+    margin-top: 70px;
+    margin-bottom: 80px;
+    padding: 15px;
+}
+
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    height: 65px;
+    background: white;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-top: 1px solid #eeee;
+}
+
+.nav-item {
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+    cursor: pointer;
+}
+
+.nav-item.active {
+    color: #4caf50;
+}
+
+.center span {
+    color: #5d3fd3;
+    
+}
+
+.bottom-sheet {
+    position: fixed;
+    bottom: -200px;
+    width: 100%;
+    background: white;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -5px 15px rgba(0,0,0,0.2);
+    transition: 0.3s;
+}
+
+.bottom-sheet.show {
+    bottom: 0;
+}
+
+.sheet-content {
+    padding: 20px;
+    text-align: center;
+}
+
+.sheet-content p {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+}
+
+.drag-bar {
+    width: 40px;
+    height: 5px;
+    background: #ccc;
+    border-radius: 10px;
+    margin: 0 auto 10px;
+}
+
+.nav-item p {
+    color: #4caf50;
+}
+
+.card {
+    background: white;
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.05);
+    margin-top: 10px;
+}
+
+textarea {
+    width: 100%;
+    padding: 10px;
+    margin-top: 8px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    outline: none;
+    resize: none;
+
+}
+
+input {
+    width: 100%;
+    padding: 10px;
+    margin-top: 8px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    outline: none;
+}
+
+input::placeholder {
+    font-size: 14px;
+}
+
+
+button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    background: #4caf50;
+    border: none;
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+}
+
+.class-card {
+    background: white;
+    padding: 12px;
+    border-radius: 12px;
+    margin-top: 10px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.05);
+}
+
+.class-name {
+    font-weight: 600;
+}
+
+.class-desc {
+    font-size: 13px;
+    color: #666;
+}
+
+.class-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.back-btn {
+    cursor: pointer;
+}
+
+.class-tabs {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.tab {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 8px;
+    background: #4caf50;
+}
+
+.tab.active {
+    background: #5d3fd3;
+}
+
+.material-card {
+    background: white;
+    padding: 12px;
+    border-radius: 12px;
+    margin-top: 10px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.05);
+}
+
+.material-title {
+    font-weight: 600;
+}
+
+.material-link {
+    display: inline-block;
+    margin-top: 6px;
+    color: #4caf50;
+    font-size: 13px;
+}
+
+.material-img {
+    width: 100%;
+    border-radius: 8px;
+    margin-top: 8px;
+}
+
+.delete-btn {
+    margin-top: 8px;
+    background: #f44336;
+}
+
+select {
+    padding: 5px;
+    margin-top: 5px;
+    border: 1px solid #eee;
+    border-radius: 20px;
+    width: 100%;
+}
+
+.student-card {
+    background: white;
+    padding: 10px;
+    gap: 10px;
+    border-radius: 10px;
+    margin-top: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.actions button {
+    margin-left: 5px;
+    padding: 6px 10px;
+    border: none;
+    border-radius: 6px;
+    color: white;
+}
+
+.approve {
+    background: #4caf50;
+}
+
+.reject {
+    background: #f44336;
+}
+
+.stats {
+    display: flex;
+    gap: 10px;
+}
+
+.stats p {
+    text-align: center;
+}
+
+.btn {
+    display: flex;
+}
+
+
+.btn.primary {
+    color: white;
+    background: #4caf50;
+    text-align: center;
+}
+
+.btn.danger {
+    background: #f44336;
+    color: white;
+    text-align: center;
+}
+
+.btn.secondary {
+    background: #2196f3;
+    color: white;
+    text-align: center;
+}
+
+.assignment-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.assignment-actions .btn {
+    flex: 1;
+}
+
+.notification-wrapper {
+  position: relative;
+}
+
+.badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: red;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 50%;
+}
+
+.notif-dropdown {
+  position: absolute;
+  right: 0;
+  top: 30px;
+  width: 260px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  display: none;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.notif-item {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+}
+
+.notif-item.unread {
+  background: #f0f8ff;
+}
+

@@ -1,0 +1,108 @@
+body {
+    font-family: 'Poppins', sans-serif;
+    background: #ffffff;
+    margin: 0;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+input {
+    user-select: auto;
+    -webkit-user-select: auto;
+}
+
+a:hover{
+    color: #5d3fd3;
+}
+
+button, a, div {
+    -webkit-tap-highlight-color: transparent;
+}
+
+button::active {
+    transform: scale(0.97);
+    opacity: 0.9;
+}
+
+.container {
+    max-width: 400px;
+    margin: 80px auto;
+    padding: 20px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    border-radius: 12px;
+}
+
+h2 {
+    text-align: center;
+}
+
+input {
+    width: 95%;
+    padding: 12px;
+    margin: 10px 0;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    background: black;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.link {
+    text-align: center;
+    margin-top: 10px;
+}
+
+a {
+    text-decoration: none;
+    color: #555;
+}
+
+input::placeholder {
+    font-size: 14px;
+    font-family: 'Poppins';
+}
+
+p {
+    text-align: center;
+    color: #666;
+}
+
+.message {
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    font-size: 14px;
+    display: none;
+}
+
+.message.success {
+    background: #e6f4ea;
+    color: #2e7d32;
+}
+
+.message.error {
+    background: #fdecea;
+    color: #c62828;
+}
+
+.message.warning {
+    background: #fff4e5;
+    color: #ef6c00;
+}
+
+.message.show {
+    display: block;
+}
+
+.status.suspended {
+    background: #fdecea;
+    color: #c62828;
+}
