@@ -1,8 +1,23 @@
+:root {
+    --bg: #f8f9fb;
+    --card: #ffffff;
+    --border: #e5e7eb;
+
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+
+    --accent: #2563eb;
+    --accent-soft: #eff6ff;
+
+    --success: #16a34a;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+
+    --radius: 14px;
+}
+
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: 'Poppins', sans-serif;
+    margin: 0; padding: 0; box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
     user-select: none;
     -webkit-user-select: none;
@@ -24,8 +39,9 @@ input {
 }
 
 body {
-    background: #f5f6fa;
-    color: #111;
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: 'Poppins', sans-serif;
 }
 
 .header {
@@ -38,7 +54,7 @@ body {
     justify-content: space-between;
     align-items: center;
     padding: 0 15px;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border);
     z-index: 1000;
 }
 
@@ -110,36 +126,37 @@ body {
 .status.rejected { background: #f8d7da;}
 
 .card {
-    align-items: center;
-    justify-content: space-between;
-    background: white;
-    text-align: center;
+    background: var(--card);
     padding: 12px;
-    border-radius: 12px;
+    border-radius: var(--radius);
     margin-bottom: 10px;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.05);
     margin-top: 10px;
+    border: 1px solid var(--border);
 }
 
 
 
 button {
-    width: 100%;
     padding: 10px;
     margin-top: 10px;
-    background: #4caf50;
-    border: none;
+    background: white;
+    border: 1px solid #16a34a;
+    color: #16a34a;
     border-radius: 8px;
-    color: white;
+    font-weight: 600;
     cursor: pointer;
 }
 
 .class-card {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    justify-content: center;
+    align-items: center;
     background: white;
     padding: 12px;
-    border-radius: 12px;
+    border-radius: 14px;
     margin-top: 10px;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.05);
+    border: 1px solid var(--border);
 }
 
 .class-name {
@@ -198,15 +215,15 @@ button {
 }
 
 .tab.active {
-    background: #5d3fd3;
+    background: var(--text-primary);
+    color: var(--accent-soft);
 }
 
 .assignment-card {
-    background: white;
+    border: 1px solid var(--border);
     padding: 15px;
     border-radius: 14px;
     margin-top: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
 }
 
 .assignment-header {
@@ -221,29 +238,25 @@ button {
 
 .btn {
     padding: 10px;
-    border-radius: 8px;
-    border: none;
-    width: 100%;
+    border-radius: 10px;
+    border: 1px solid var(--border);
     font-weight: 500;
 }
 
 .btn.primary {
-    color: #5d3fd3;
-    font-weight: 800;
-    background: transparent;
-    border: 1px solid #5d3fd3;
+    color: var(--text-primary);
+    background: var(--accent-soft);
+    border: 1px solid #111827;
 }
 
 .btn.danger {
-    background: #f44336;
-    color: white;
+    background: #fff1f2;
+    color: var(--danger);
 }
 
 .btn.secondary {
-    background: transparent;
-    border: 1px solid #5d3fd3;
-    font-weight: 800;
-    color: #5d3fd3;
+    background: var(--accent-soft);
+    color: var(--accent);
 }
 
 .btn.disabled {
@@ -261,8 +274,11 @@ button {
 
 
 .welcome-card {
-    background: linear-gradient(135deg, #5f9ea0, #ccccff);
-    color: white;
+    display: flex;
+    justify-content: space-between;
+    background: white;
+    color: var(--text-primary);
+    border: 1px solid var(--border);
     padding: 18px;
     border-radius: 16px;
 }
@@ -275,26 +291,31 @@ button {
 
 .stat-card {
     flex: 1;
-    background: #6495ed;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: white;
     padding: 12px;
-    border-radius: 14px;
-    color: white;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    color: var(--text-primary);
     text-align: center;
 }
 
 .stat-card span {
     font-size: 26px;
-    color: white;
+    color: var(--text-secondary);
 }
 
 .stat-card.highlight {
-    background: #6495ed;
-    color: white;
+    background: white;
+    color: var(--text-primary);
 }
 
 .stat-card.highlight span {
-    color: white;
+    color: var(--text-secondary);
+}
+
+.stat-card h4 {
+    font-size: 18px;
+    margin: 6px 0;
 }
 
 .quick-actions {
@@ -345,9 +366,9 @@ button {
 }
 
 .progress-bar {
-    background: #eee;
+    background: #f1f5f9;
     height: 8px;
-    border-radius: 10px;
+    border-radius: 999px;
     overflow: hidden;
 }
 
@@ -366,6 +387,7 @@ button {
 
 .progress-fill {
     height: 100%;
+    border-radius: 999px;
 }
 
 .progress-scroll {

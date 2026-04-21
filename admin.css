@@ -1,3 +1,21 @@
+:root {
+    --bg: #f8f9fb;
+    --card: #ffffff;
+    --border: #e5e7eb;
+
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+
+    --accent: #2563eb;
+    --accent-soft: #eff6ff;
+
+    --success: #16a34a;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+
+    --radius: 14px;
+}
+
 * {
     margin: 0;
     padding: 0;
