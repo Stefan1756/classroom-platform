@@ -624,11 +624,11 @@ async function gradeSubmission(id, grade) {
 async function notifyGrade(studentId, grade, assignmentId, classId) {
   await addDoc(collection(db, "notifications"), {
     userId: studentId,
+    message: `Your assignment was graded ${grade}%`,
     type: "grade",
-    message: `You received ${grade}%`,
-    read: false,
     assignmentId,
     classId,
+    read: false,
     createdAt: serverTimestamp()
   });
 }

@@ -1,6 +1,9 @@
 body {
     font-family: 'Poppins', sans-serif;
-    background: #ffffff;
+    background: #0f172a;
+    height: 100vh;
+    align-items: center;
+    justify-content: center;
     margin: 0;
     -webkit-tap-highlight-color: transparent;
     user-select: none;
@@ -29,20 +32,47 @@ button::active {
     max-width: 400px;
     margin: 80px auto;
     padding: 20px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
     border-radius: 12px;
 }
 
 h2 {
     text-align: center;
+    color: #94a3b8;
+}
+
+.input-box{
+    position: relative;
+    width: 90%;
 }
 
 input {
-    width: 95%;
+    width: 100%;
     padding: 12px;
-    margin: 10px 0;
+    background-color: transparent;
+    border: 2px solid #5d3fd3;
+    outline: none;
+    color: white;
+    font-size: 16px;
     border-radius: 8px;
-    border: 1px solid #ccc;
+    margin-bottom: 20px;
+}
+
+label{
+    position: absolute;
+    left: 12px;
+    top: 12px;
+    color: #94a3b8;
+    pointer-events: none;
+    transition: 0.3s;
+    background-color: #0f172a;
+    padding: 0 5px;
+}
+
+input:focus+label,
+input:valid+label {
+    top: -8px;
+    font-size: 12px;
+    color: #5d3fd3;
 }
 
 button {
@@ -62,7 +92,7 @@ button {
 
 a {
     text-decoration: none;
-    color: #555;
+    color: wheat;
 }
 
 input::placeholder {
@@ -72,7 +102,7 @@ input::placeholder {
 
 p {
     text-align: center;
-    color: #666;
+    color: whitesmoke;
 }
 
 .message {
