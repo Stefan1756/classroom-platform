@@ -418,6 +418,7 @@ button {
 
 .material-card {
     display: flex;
+    flex-direction: column;
     justify-content: space-between;
     background: white;
     padding: 12px;
@@ -427,10 +428,12 @@ button {
 }
 
 .material-card a {
+    display: flex;
+    margin-top: 10px;
     text-decoration: none;
     padding: 5px 10px;
     border-radius: 999px;
-    background: #dcfce7;
+    background: #a855f7;
 }
 
 .material-title {

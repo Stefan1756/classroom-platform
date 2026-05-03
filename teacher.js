@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 import { 
     getStorage,
@@ -17,6 +17,7 @@ import {
     query,
     where,
     deleteDoc,
+    getDocs,
     getDoc,
     updateDoc,
     doc} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -43,38 +44,238 @@ function loadPage(page) {
     contentArea.innerHTML = "";
 
     if (page === "dashboard") {
-        loadDashboard();
+        renderDashboardSkeleton();
+        onAuthStateChanged(auth, (user) => {
+            if (user) initDashboard(user);
+        });
     }
 
     if (page === "classes") {
         contentArea.innerHTML = `
-            <h3>Classes</h3>
+        <div class="classes-page">
 
-            <div class="card">
-                <input type="text" id="className" placeholder="Class name" />
-                <input type="text" id="classDesc" placeholder="Description" />
-                <button id="createClassBtn">Create Class</button>
+            <div class="classes-header">
+                <div>
+                    <h2>Manage Classes</h2>
+                    <p>Create and organize your classes</p>
+                </div>
+
+                <button class="btn primary" id="openCreateClass">
+                    <span class="material-icons">add</span>
+                    Create
+                </button>
             </div>
 
-            <div id="classList"></div>
-        `;
+            <div class="create-class-card hidden" id="createClassForm">
+                <input type="text" id="className" placeholder="Class name" />
+                <input type="text" id="classDesc" placeholder="Description" />
 
+                <button id="createClassBtn" class="btn primary">
+                    Create Class
+                </button>
+            </div>
+
+            <div>
+                <h4>My Classes</h4>
+                <p>List of all created classes, enter and delete classes whenever you like.</p>
+            </div>
+
+            <div id="classList" class="class-list"></div>
+        </div>
+        `;
+        initClassesUI();
         initClasses();
     }
 
-    if (page === "materials") {
-        contentArea.innerHTML = `
-            <h3>Materials</h3>
-            <p>Upload and manage learning materials</p>
-        `;
-    }
+    if (page === "profile") {
+        const container = document.getElementById("contentArea");
+        container.innerHTML = renderProfileSkeleton();
 
-    if (page === "students") {
-        contentArea.innerHTML = `
-            <h3>Students</h3>
-            <p>View students in your classes</p>
-        `;
+        initProfileData();
     }
+}
+
+function renderProfileSkeleton() {
+    return `
+       <div class="dashboard">
+        
+            <div class="skeleton-stat"></div>
+        
+            <div class="dash-stats">
+                <div class="skeleton stat"></div>
+                <div class="skeleton text"></div>
+                <div class="skeleton stat"></div>
+                <div class="skeleton text"></div>
+                <div class="skeleton stat"></div>
+                <div class="skeleton text"></div>
+                <div class="skeleton stat"></div>
+                <div class="skeleton text"></div>
+                <div class="skeleton stat"></div>
+                <div class="skeleton text"></div>
+                <div class="skeleton stat"></div>
+                <div class="skeleton text"></div>
+            </div>
+        
+            <div class="skeleton card" style="height:80px;"></div>
+        </div>
+    `;
+}
+
+async function initProfileData() {
+    const user = auth.currentUser;
+
+    const userRef = doc(db, "users", user.uid);
+    const snap = await getDoc(userRef);
+    const data = snap.data();
+
+    renderProfileUI(data);
+    loadTeacherStats(user.uid);
+}
+
+function renderProfileUI(user) {
+    const container = document.getElementById("contentArea");
+
+    container.innerHTML = `
+        <div class="profile-page">
+        
+            <div class="profile-header-modern">
+                <h2>My Profile</h2>
+                <span class="material-icons">edit</span>
+            </div>
+            
+            <div class="profile-card-modern">
+                <img src="${user?.photoURL || "default.jpeg"}" class="avatar"/>
+                
+                <div>
+                    <h3>${user?.username || "Teacher"}</h3>
+                    <p>${user?.email || ""}</p>
+                </div>
+            </div>
+            
+            <div class="profile-stats">
+                <div class="stat-box">
+                    <p>Classes</p>
+                    <strong id="pClasses">--</strong>
+                </div>
+                
+                <div class="stat-box">
+                    <p>Students</p>
+                    <strong id="pStudents">--</strong>
+                </div>
+                
+                <div class="stat-box">
+                    <p>Materials</p>
+                    <strong id="pMaterials">--</strong>
+                </div>
+            </div>
+            
+            <div class="profile-actions">
+                <div class="action-card">Manage Classes</div>
+                <div class="action-card">Upload Materials</div>
+                <div class="action-card">View Insights</div>
+            </div>
+            
+            <div class="card">
+                <h4>About</h4>
+                <p id="profileAbout">
+                    ${user?.about || "This is your profile. You can update it later."}
+                </p>
+            </div>
+            
+        </div>
+    `;
+}
+
+function loadTeacherStats(teacherId) {
+    const classQ = query(
+        collection(db, "classes"),
+        where("teacherId", "==", teacherId)
+    );
+
+    onSnapshot(classQ, async (classSnap) => {
+
+        const classIds = classSnap.docs.map(doc => doc.id);
+
+        document.getElementById("pClasses").textContent =
+            formatNumber(classIds.length);
+
+        if (classIds.length ===0) {
+            document.getElementById("pStudents").textContent = "0";
+            document.getElementById("pMaterials").textContent = "0";
+            return;
+        }
+
+        loadStudentsCount(classIds);
+        loadMaterialsCount(classIds);
+    });
+}
+
+function loadStudentsCount(classIds) {
+    const enrollQ = collection(db, "enrollments");
+
+    onSnapshot(enrollQ, (snap) => {
+        let count = 0;
+
+        snap.forEach(doc => {
+            const data = doc.data();
+
+            if (
+                classIds.includes(data.classId) && 
+                data.status === "approved"
+            ) {
+                count++;
+            }
+        });
+
+        document.getElementById("pStudents").textContent =
+            formatNumber(count);
+    });
+}
+
+function loadMaterialsCount(classIds) {
+    let materials = 0;
+    let exams = 0;
+    let papers = 0;
+
+    const update = () => {
+        const total = materials + exams + papers;
+
+        document.getElementById("pMaterials").textContent =
+            formatNumber(total);
+    };
+
+    onSnapshot(collection(db, "materials"), (snap) => {
+        materials = snap.docs.filter(d =>
+            classIds.includes(d.data().classId)
+        ).length;
+
+        update();
+    });
+
+    onSnapshot(collection(db, "examinations"), (snap) => {
+        exams = snap.docs.filter(d =>
+            classIds.includes(d.data().classId)
+        ).length;
+
+        update();
+    });
+
+    onSnapshot(collection(db, "pastpapers"), (snap) => {
+        papers = snap.docs.filter(d =>
+            classIds.includes(d.data().classId)
+        ).length;
+
+        update();
+    });
+}
+
+function initClassesUI() {
+    const openBtn = document.getElementById("openCreateClass");
+    const form = document.getElementById("createClassForm");
+
+    openBtn.onclick = () => {
+        form.classList.toggle("hidden");
+    };
 }
 
 function initClasses() {
@@ -102,10 +303,17 @@ async function createClass() {
 
     document.getElementById("className").value = "";
     document.getElementById("classDesc").value = "";
+
+    document.getElementById("createClassForm").classList.add("hidden");
 }
+
+let unsubscribeClasses = null;
 
 function loadClasses() {
     const list = document.getElementById("classList");
+
+    list.innerHTML = renderClassSkeleton();
+
     const user = auth.currentUser;
 
     const q = query(
@@ -113,52 +321,140 @@ function loadClasses() {
         where("teacherId", "==", user.uid)
     );
 
-
     onSnapshot(q, (snapshot) => {
         list.innerHTML = "";
 
-        snapshot.forEach(doc => {
-            const c = doc.data();
+        if (snapshot.empty) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    <span class="material-icons">school</span>
+                    <p>No classes yet</p>
+                </div>
+            `;
+            return;
+        }
+
+        snapshot.forEach(docSnap => {
+            const c = docSnap.data();
+            const classId = docSnap.id;
 
             const card = document.createElement("div");
-            card.className = "class-card";
-
-            card.addEventListener("click", () => {
-                openClassPage(doc.id, c);
-            });
+            card.className = "class-card-modern";
 
             card.innerHTML = `
-                <div class="class-name">${c.name}</div>
-                <div class="class-desc">${c.description || ""}</div>
+                <div class="class-info">
+                    <h3>${c.name}</h3>
+                    <p>${c.description || "No description"}</p>
+                </div>
+
+                <div class="class-actions">
+                    <button class="btn enter-btn" data-id="${docSnap.id}">
+                        Enter
+                    </button>
+
+                    <button class="delete-class-btn">
+                        Delete
+                    </button>
+                </div>
             `;
+
+            card.querySelector(".delete-class-btn").onclick = async (e) => {
+                e.stopPropagation();
+
+                if (!confirm("Delete class?")) return;
+
+                await deleteClass(classId);
+            };
 
             list.appendChild(card);
         });
+
+        attachClassActions(snapshot);
     }); 
 }
 
-function openClassPage(classId, classData) {
-    contentArea.innerHTML = `
-        <div class="class-header">
-            <span class="material-icons back-btn" id="backBtn">arrow_back</span>
-            <h3>${classData.name}</h3>
-        </div>
-        
-        <p>${classData.description || ""}</p>
-        
-        <div class="class-tabs">
-            <button class="tab active" data-tab="materials">Materials</button>
-            <button class="tab" data-tab="students">Students</button>
-            <button class="tab" data-tab="assignments">Assignments</button>
+function renderClassSkeleton() {
+    let skeletons = "";
 
-        </div>
+    for (let i = 0; i < 3; i++) {
+        skeletons += `
+            <div class="class-card-skeleton">
+                <div class="skeleton title"></div>
+                <div class="skeleton text"></div>
+                <div class="skeleton btn"></div>
+            </div>
+        `;
+    }
+
+    return skeletons;
+}
+
+function attachClassActions(snapshot) {
+    document.querySelectorAll(".enter-btn").forEach(btn => {
+        btn.onclick = () => {
+            const id = btn.dataset.id;
+            const docSnap = snapshot.docs.find(d => d.id === id);
+            openClassPage(id, docSnap.data());
+        };
+    });  
+}
+
+   
+
+function openClassPage(classId, classData) {
+    const contentArea = document.getElementById("contentArea");
+    
+    contentArea.innerHTML = `
+        <div class="class-page">
+          
+            <div class="class-header-modern">
+                <div class="header-left">
+                    <span class="material-icons back-btn" id="backBtn">arrow_back</span>
+                    <div>
+                        <h2>${classData.name}</h2>
+                        <p>${classData.description || "No description"}</p>
+                    </div>
+                </div>
+
+                <div class="header-actions">
+                    <button class="btn secondary">Insights</button>
+                </div>
+            </div>
         
-        <div id="classContent"></div>
+            <div class="class-stats">
+                <div class="stat-card">
+                    <p>Students</p>
+                    <strong id="statStudents">--</strong>
+                </div>
+
+                <div class="stat-card">
+                    <p>Assignments</p>
+                    <strong id="statAssignments">--</strong>
+                </div>
+
+                <div class="stat-card">
+                    <p>Materials</p>
+                    <strong id="statMaterials">--</strong>
+                </div>
+            </div>
+        
+            <div class="class-tabs-modern">
+                <button class="tab active" data-tab="materials">Materials</button>
+                <button class="tab" data-tab="students">Students</button>
+                <button class="tab" data-tab="assignments">Assignments</button>
+                <button class="tab" data-tab="examinations">Exams</button>
+                <button class="tab" data-tab="pastpapers">Past Papers</button>
+            </div>
+        
+            <div id="classContent" class="class-content-modern"></div>
+        
+        </div>
     `;
 
     document.getElementById("backBtn").onclick = () => loadPage("classes");
 
     initClassTabs(classId);
+    loadClassInsights(classId);
 }
 
 function initClassTabs(classId) {
@@ -174,10 +470,90 @@ function initClassTabs(classId) {
             if (selected === "materials") loadMaterials(classId);
             if (selected === "students") loadStudents(classId);
             if (selected === "assignments") loadAssignments(classId);
+            if (selected === "examinations") loadExaminations(classId);
+            if (selected === "pastpapers") loadPastPapers(classId);
         });
     });
 
     loadMaterials(classId);
+}
+
+function loadClassInsights(classId) {
+    const studentsQ = query(
+        collection(db, "enrollments"),
+        where("classId", "==", classId),
+        where("status", "==", "approved")
+    );
+
+    onSnapshot(studentsQ, (snap) => {
+        const count = snap.size;
+        document.getElementById("statStudents").textContent = formatNumber(count);
+    });
+
+    const assignmentsQ = query(
+        collection(db, "assignments"),
+        where("classId", "==", classId),
+    );
+
+    onSnapshot(assignmentsQ, (snap) => {
+        const count = snap.size;
+        document.getElementById("statAssignments").textContent = formatNumber(count);
+    });
+
+    loadTotalMaterials(classId);
+}
+
+function loadTotalMaterials(classId) {
+    let materialsCount = 0;
+    let examsCount = 0;
+    let pastPapersCount = 0;
+
+    const updateUI = () => {
+        const total = materialsCount + examsCount + pastPapersCount;
+
+        const el = document.getElementById("statMaterials");
+        if (el) el.textContent = formatNumber(total);
+    };
+
+    const mQ = query(
+        collection(db, "materials"),
+        where("classId", "==", classId)
+    );
+
+    onSnapshot(mQ, (snap) => {
+        materialsCount = snap.size;
+        updateUI();
+    });
+
+    const eQ = query(
+        collection(db, "examinations"),
+        where("classId", "==", classId)
+    );
+
+    onSnapshot(eQ, (snap) => {
+        examsCount = snap.size;
+        updateUI();
+    });
+
+    const pQ = query(
+        collection(db, "pastpapers"),
+        where("classId", "==", classId)
+    );
+
+    onSnapshot(pQ, (snap) => {
+        pastPapersCount = snap.size;
+        updateUI();
+    });
+}
+
+function formatNumber(num) {
+    if (num >= 1000) {
+        const formatted = (num / 1000).toFixed(1);
+        return formatted.endsWith(".0")
+            ? formatted.slice(0, -2) + "k"
+            : formatted + "k";
+    }
+    return num;
 }
 
 function loadMaterials(classId) {
@@ -635,27 +1011,430 @@ async function notifyGrade(studentId, grade, assignmentId, classId) {
 await notifyGrade(s.studentId, grade, s.assignmentId, s.classId);
 }
 
-function loadDashboard() {
-    contentArea.innerHTML = `
-        <h3>Teacher's Dashboard</h3>
-    
-        <div class="stats">
-            <div class="card">
-                <h4>Total Classes</h4>
-                <p>0</p>
+function loadPastPapers(classId) {
+    const content = document.getElementById("classContent");
+
+    content.innerHTML = `
+        <div class="card">
+            <input type="text" id="paperTitle" placeholder="Past paper title" />
+            <input type="file" id="paperFile" />
+            <button id="uploadPaperBtn">Upload Paper</button>
+        </div>
+
+        <div id="paperList"></div>
+    `;
+
+    document.getElementById("uploadPaperBtn").onclick = () => {
+        uploadPaper(classId);
+    };
+
+    loadPaperList(classId);
+}
+
+async function uploadPaper(classId) {
+    const title = document.getElementById("paperTitle").value;
+    const file = document.getElementById("paperFile").files[0];
+
+    if (!title || !file) return alert("Fill all fields");
+
+    const fileRef = ref(storage, `papers/${Date.now()}_${file.name}`);
+
+    await uploadBytes(fileRef, file);
+    const url = await getDownloadURL(fileRef);
+
+    await addDoc(collection(db, "pastpapers"), {
+        classId,
+        title,
+        fileUrl: url,
+        fileType: file.type,
+        createdAt: serverTimestamp()
+    });
+
+    document.getElementById("paperTitle").value = "";
+}
+
+function loadPaperList(classId) {
+    const list = document.getElementById("paperList");
+
+    const q = query(
+        collection(db, "pastpapers"),
+        where("classId", "==", classId)
+    );
+
+    onSnapshot(q, (snapshot) => {
+        list.innerHTML = "";
+
+        snapshot.forEach(docSnap => {
+            const p = docSnap.data();
+            const classId = docSnap.id;
+
+            const card = document.createElement("div");
+            card.className = "material-card";
+
+            let preview = "";
+
+            if (p.fileType.startsWith("image")) {
+                preview = `<img src="${p.fileUrl}" class="material-img" />`;
+            } else if (p.fileType === "application/pdf") {
+                preview = `
+                    <iframe src="${p.fileUrl}" class="pdf-preview"></iframe>
+                `;
+            } else {
+                preview = `
+                    <div class="file-preview">
+                        <span class="material-icons">description</span>
+                        <p>${p.title}</p>
+                    </div>
+                `;
+            }
+
+            card.innerHTML = `
+                <div class="material-title">${p.title}</div>
+                ${preview}
+                <button class="delete-btn" data-id="${docSnap.id}">
+                    Delete
+                </button>
+            `;
+
+            list.appendChild(card);
+        });
+
+        attachPaperDelete();
+    });
+}
+
+function attachPaperDelete() {
+    document.querySelectorAll(".delete-btn").forEach(btn => {
+        btn.onclick = async () => {
+            const id = btn.dataset.id;
+
+            if (!confirm("Delete this examinations?")) return;
+
+            await deleteDoc(doc(db, "pastpapers", id));
+        };
+    });
+}
+
+
+function loadExaminations(classId) {
+    const content = document.getElementById("classContent");
+
+    content.innerHTML = `
+        <div class="card">
+            <input type="text" id="examTitle" placeholder="Examination title" />
+            <input type="file" id="examFile" />
+            <button id="uploadExamBtn">Upload Examination</button>
+        </div>
+
+        <div id="examList"></div>
+    `;
+
+    document.getElementById("uploadExamBtn").onclick = () => {
+        uploadExam(classId);
+    };
+
+    loadExamList(classId);
+}
+
+async function uploadExam(classId) {
+    const title = document.getElementById("examTitle").value;
+    const file = document.getElementById("examFile").files[0];
+
+    if (!title || !file) return alert("Fill all fields");
+
+    const fileRef = ref(storage, `exams/${Date.now()}_${file.name}`);
+
+    await uploadBytes(fileRef, file);
+    const url = await getDownloadURL(fileRef);
+
+    await addDoc(collection(db, "examinations"), {
+        classId,
+        title,
+        fileUrl: url,
+        fileType: file.type,
+        createdAt: serverTimestamp()
+    });
+
+    document.getElementById("examTitle").value = "";
+    document.getElementById("examFile").value = "";
+}
+
+function loadExamList(classId) {
+    const list = document.getElementById("examList");
+
+    const q = query(
+        collection(db, "examinations"),
+        where("classId", "==", classId)
+    );
+
+    onSnapshot(q, (snapshot) => {
+        list.innerHTML = "";
+
+        snapshot.forEach(docSnap => {
+            const e = docSnap.data();
+            const classId = docSnap.id;
+
+            const card = document.createElement("div");
+            card.className = "material-card";
+
+            let preview = "";
+
+            if (e.fileType.startsWith("image")) {
+                preview = `<img src="${e.fileUrl}" class="material-img" />`;
+            } else if (e.fileType === "application/pdf") {
+                preview = `
+                    <iframe src="${e.fileUrl}" class="pdf-preview"></iframe>
+                `;
+            } else {
+                preview = `
+                    <div class="file-preview">
+                        <span class="material-icons">description</span>
+                        <p>${e.title}</p>
+                    </div>
+                `;
+            }
+
+            card.innerHTML = `
+                <div class="material-title">${e.title}</div>
+                ${preview}
+                <button class="delete-btn" data-id="${docSnap.id}">
+                    Delete
+                </button>
+            `;
+
+            list.appendChild(card);
+        });
+
+        attachExamDelete();
+    });
+}
+
+function attachExamDelete() {
+    document.querySelectorAll(".delete-btn").forEach(btn => {
+        btn.onclick = async () => {
+            const id = btn.dataset.id;
+
+            if (!confirm("Delete this examinations?")) return;
+
+            await deleteDoc(doc(db, "examinations", id));
+        };
+    });
+}
+
+function renderDashboardSkeleton() {
+    return `
+        <div class="dashboard">
+        
+            <div class="skeleton-stat"></div>
+        
+            <div class="dash-stats">
+                <div class="skeleton stat"></div>
+                <div class="skeleton text"></div>
+                <div class="skeleton stat"></div>
+                <div class="skeleton text"></div>
+                <div class="skeleton stat"></div>
+                <div class="skeleton text"></div>
+                <div class="skeleton stat"></div>
+                <div class="skeleton text"></div>
+                <div class="skeleton stat"></div>
+                <div class="skeleton text"></div>
+                <div class="skeleton stat"></div>
+                <div class="skeleton text"></div>
             </div>
         
-            <div class="card">
-                <h4>Total Students</h4>
-                <p>0</p>
+            <div class="skeleton card" style="height:80px;"></div>
+        </div>
+    `;
+}
+
+async function initDashboard(user) {
+    if (!user) return;
+
+    const userRef = doc(db, "users", user.uid);
+    const snap = await getDoc(userRef);
+    const data = snap.data();
+
+    renderDashboardUI(data);
+    loadDashboardStats(user.uid);
+}
+
+function renderDashboardUI(user) {
+    const container = document.getElementById("contentArea");
+
+    const today = new Date().toLocaleDateString("en-US", {
+        weekday: "long",
+        day: "numeric",
+        month: "long"
+    });
+
+    container.innerHTML = `
+        <div class="dashboard">
+            <div class="dash-header-modern">
+                <h2>Hello ${user?.username || "Teacher"}</h2>
+                <p>${today}</p>
             </div>
-        
-           <div class="card">
-                <h4>Materials</h4>
-                <p>0</p>
+            
+            <div class="dash-stats-modern">
+                <div class="dash-card">
+                    <p>Classes</p>
+                    <strong id="dClasses">--</strong>
+                </div>
+                
+                <div class="dash-card">
+                    <p>Students</p>
+                    <strong id="dStudents">--</strong>
+                </div>
+                
+                <div class="dash-card">
+                    <p>Contents</p>
+                    <strong id="dMaterials">--</strong>
+                </div>
+            </div>
+            
+            <div class="dash-insight-card" id="insightBox">
+                Loading insights...
+            </div>
+            
+            <div class="dash-actions">
+                <div class="action-card" id="goClasses">
+                    <span class="material-icons">school</span>
+                    <p>Manage Classes</p>
+                </div>
+                
+                <div class="action-card" id="goMaterials">
+                    <span class="material-icons">menu_book</span>
+                    <p>Add Materials</p>
+                </div>
+                
+                <div class="action-card" id="goAssignments">
+                    <span class="material-icons">task_alt</span>
+                    <p>Create Assignment</p>
+                </div>
             </div>
         </div>
     `;
+
+    attachDashboardActions();
+}
+
+function loadDashboardStats(teacherId) {
+    const classQ = query(
+        collection(db, "classes"),
+        where("teacherId", "==", teacherId)
+    );
+
+    onSnapshot(classQ, (classSnap) => {
+        const classIds = classSnap.docs.map(d => d.id);
+
+        document.getElementById("dClasses").textContent =
+            formatNumber(classIds.length);
+
+        if (classIds.length === 0) {
+            updateInsight("You have no classes yet. Create your first class.");
+            return;
+        }
+
+        loadDashboardStudents(classIds);
+        loadDashboardMaterials(classIds);
+    });
+}
+
+function loadDashboardStudents(classIds) {
+    onSnapshot(collection(db, "enrollments"), (snap) => {
+
+        let count = 0;
+
+        snap.forEach(doc => {
+            const d = doc.data();
+
+            if (
+                classIds.includes(d.classId) &&
+                d.status === "approved"
+            ) {
+                count++;
+            }
+        });
+
+        document.getElementById("dStudents").textContent =
+            formatNumber(count);
+        
+        generateInsight(count);
+    });
+}
+
+function loadDashboardMaterials(classIds) {
+
+    let materials = 0;
+    let exams = 0;
+    let papers = 0;
+
+    const update = () => {
+        const total = materials + exams + papers;
+
+        document.getElementById("dMaterials").textContent =
+            formatNumber(total);
+    };
+
+    onSnapshot(collection(db, "materials"), (snap) => {
+        materials = snap.docs.filter(d =>
+            classIds.includes(d.data().classId)
+        ).length;
+
+        update();
+    });
+
+    onSnapshot(collection(db, "examinations"), (snap) => {
+        exams = snap.docs.filter(d =>
+            classIds.includes(d.data().classId)
+        ).length;
+
+        update();
+    });
+
+    onSnapshot(collection(db, "pastpapers"), (snap) => {
+        papers = snap.docs.filter(d =>
+            classIds.includes(d.data().classId)
+        ).length;
+
+        update();
+    });
+
+}
+
+function generateInsight(studentCount) {
+    let message = "";
+
+    if (studentCount === 0) {
+        message = "No students enrolled yet. Share your class code.";
+    } else if (studentCount < 10) {
+        message = "Your class is growing. Invite more students.";
+    } else if (studentCount < 50) {
+        message = "Good engagement. Keep adding materials.";
+    } else {
+        message = "High activity class. Consider adding assessments.";
+    }
+
+    updateInsight(message);
+}
+
+function updateInsight(msg) {
+    const el = document.getElementById("insightBox");
+    if (el) el.textContent = msg;
+}
+
+function attachDashboardActions() {
+
+    document.getElementById("goClasses").onclick = () => {
+        loadPage("classes");
+    };
+
+    document.getElementById("goMaterials").onclick = () => {
+        loadPage("classes");
+    };
+
+    document.getElementById("goAssignments").onclick = () => {
+        loadPage("classes");
+    };
 }
 
 navItems.forEach(item => {
@@ -664,9 +1443,24 @@ navItems.forEach(item => {
         navItems.forEach(i => i.classList.remove("active"));
         item.classList.add("active");
 
-        const page = item.getAttribute("data-page");
+        const page = item.dataset.page;
         loadPage(page);
     });
 });
+
+async function deleteClass(classId) {
+    try {
+        if (!classId) {
+            console.error("Missing classId");
+            return;
+        }
+
+        await deleteDoc(doc(db, "classes", classId));
+
+        console.log("Deleted class:", classId);
+    } catch (err) {
+        console.error("Delete failed:", err);
+    }
+}
 
 loadPage("dashboard");

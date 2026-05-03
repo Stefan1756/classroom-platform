@@ -626,7 +626,7 @@ async function loadStudentPapers(classId) {
   const container = document.getElementById("classContent");
 
   const q = query(
-    collection(db, "past_papers"),
+    collection(db, "pastpapers"),
     where("classId", "==", classId)
   );
 
