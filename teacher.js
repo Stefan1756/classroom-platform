@@ -1328,7 +1328,7 @@ function renderDashboardUI(user) {
                     </div>
                     <div class="insight-info">
                         <h4 id="engagementScore">0%</h4>
-                        <p>Enagegement</p>
+                        <p>Engagement</p>
                         <small>Class activity level</small>
                     </div>
                 </div>
