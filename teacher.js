@@ -450,11 +450,12 @@ function openClassPage(classId, classData) {
         
         </div>
     `;
-
-    document.getElementById("backBtn").onclick = () => loadPage("classes");
-
+    setTimeout(() => {
+        initDashhboardInsights(teacherId);
+    }, 0);
     initClassTabs(classId);
     loadClassInsights(classId);
+    document.getElementById("backBtn").onclick = () => loadPage("classes");
 }
 
 function initClassTabs(classId) {
@@ -547,12 +548,7 @@ function loadTotalMaterials(classId) {
 }
 
 function formatNumber(num) {
-    if (num >= 1000) {
-        const formatted = (num / 1000).toFixed(1);
-        return formatted.endsWith(".0")
-            ? formatted.slice(0, -2) + "k"
-            : formatted + "k";
-    }
+    if (num >= 1000) return (num / 1000).toFixed(1) + "k";
     return num;
 }
 
@@ -1291,30 +1287,55 @@ function renderDashboardUI(user) {
                 </div>
             </div>
             
-            <div class="dash-insight-card" id="insightBox">
-                Loading insights...
-            </div>
-            
-            <div class="dash-actions">
-                <div class="action-card" id="goClasses">
-                    <span class="material-icons">school</span>
-                    <p>Manage Classes</p>
+            <div class="insights-grid">
+
+                <div class="insight-card students">
+                    <div class="insight-icon">
+                        <span class="material-icons">groups</span>
+                    </div>
+                    <div class="insight-info">
+                        <h4 id="studentsCount">0</h4>
+                        <p>Student</p>
+                        <small id="studentsTrend">0+ this week</small>
+                    </div>
                 </div>
-                
-                <div class="action-card" id="goMaterials">
-                    <span class="material-icons">menu_book</span>
-                    <p>Add Materials</p>
+
+                <div class="insight-card assignments">
+                    <div class="insight-icon">
+                        <span class="material-icons">assignment</span>
+                    </div>
+                    <div class="insight-info">
+                        <h4 id="assignmentsCount">0</h4>
+                        <p>Assignments</p>
+                        <small id="assignmentsTrend">Active tasks</small>
+                    </div>
                 </div>
-                
-                <div class="action-card" id="goAssignments">
-                    <span class="material-icons">task_alt</span>
-                    <p>Create Assignment</p>
+
+                <div class="insight-card materials">
+                    <div class="insight-icon">
+                        <span class="material-icons">menu_book</span>
+                    </div>
+                    <div class="insight-info">
+                        <h4 id="materialsCount">0</h4>
+                        <p>Materials</p>
+                        <small id="materialsTrend">Resources shared</small>
+                    </div>
                 </div>
+
+                <div class="insight-card engagement">
+                    <div class="insight-icon">
+                        <span class="material-icons">insights</span>
+                    </div>
+                    <div class="insight-info">
+                        <h4 id="engagementScore">0%</h4>
+                        <p>Enagegement</p>
+                        <small>Class activity level</small>
+                    </div>
+                </div>
+
             </div>
         </div>
     `;
-
-    attachDashboardActions();
 }
 
 function loadDashboardStats(teacherId) {
@@ -1336,6 +1357,7 @@ function loadDashboardStats(teacherId) {
 
         loadDashboardStudents(classIds);
         loadDashboardMaterials(classIds);
+        initDashhboardInsights(teacherId);
     });
 }
 
@@ -1357,8 +1379,6 @@ function loadDashboardStudents(classIds) {
 
         document.getElementById("dStudents").textContent =
             formatNumber(count);
-        
-        generateInsight(count);
     });
 }
 
@@ -1400,42 +1420,174 @@ function loadDashboardMaterials(classIds) {
     });
 
 }
+async function initDashhboardInsights(teacherId) {
+    try {
+        const classSnap = await getDocs(query(
+            collection(db, "classes"),
+            where("teacherId", "==", teacherId)
+        ));
 
-function generateInsight(studentCount) {
-    let message = "";
+        const classIds = classSnap.docs.map(d => d.id);
 
-    if (studentCount === 0) {
-        message = "No students enrolled yet. Share your class code.";
-    } else if (studentCount < 10) {
-        message = "Your class is growing. Invite more students.";
-    } else if (studentCount < 50) {
-        message = "Good engagement. Keep adding materials.";
-    } else {
-        message = "High activity class. Consider adding assessments.";
+        if (classIds.length === 0) return;
+
+        const data = await collectDashboardInsightData(classIds);
+        renderInsights(data); 
+    } catch (err) {
+        console.error("Insights failed:", err);
+    }
+}
+
+async function collectDashboardInsightData(classIds) {
+    const { currentStart, currentEnd, lastStart, lastEnd } = getWeekRanges();
+
+    const filterByClass = (snap) =>
+        snap.docs.filter(d => classIds.includes(d.data().classId)).length;
+
+    const enrollSnap = await getDocs(collection(db, "enrollments"));
+    const assignSnap = await getDocs(collection(db, "assignments"));
+    const materialSnap = await getDocs(collection(db, "materials"));
+
+    const currentStudents = enrollSnap.docs.filter(d => {
+        const data = d.data();
+        return classIds.includes(data.classId) &&
+            data.status === "approved" &&
+            data.createdAt?.toDate() >= currentStart &&
+            data.createdAt?.toDate() < currentEnd;
+    }).length;
+
+    const lastStudents = enrollSnap.docs.filter(d => {
+        const data = d.data();
+        return classIds.includes(data.classId) &&
+            data.status === "approved" &&
+            data.createdAt?.toDate() >= lastStart &&
+            data.createdAt?.toDate() < lastEnd;
+    }).length;
+
+    const currentAssignments = assignSnap.docs.filter(d => {
+        const data = d.data();
+        return classIds.includes(data.classId) &&
+            data.createdAt?.toDate() >= currentStart &&
+            data.createdAt?.toDate() < currentEnd;
+    }).length;
+
+    const lastAssignments = assignSnap.docs.filter(d => {
+        const data = d.data();
+        return classIds.includes(data.classId) &&
+            data.createdAt?.toDate() >= lastStart &&
+            data.createdAt?.toDate() < lastEnd;
+    }).length;
+
+    const currentMaterials = materialSnap.docs.filter(d => {
+        const data = d.data();
+        return classIds.includes(data.classId) &&
+            data.createdAt?.toDate() >= currentStart &&
+            data.createdAt?.toDate() < currentEnd;
+    }).length;
+
+    const lastMaterials = materialSnap.docs.filter(d => {
+        const data = d.data();
+        return classIds.includes(data.classId) &&
+            data.createdAt?.toDate() >= lastStart &&
+            data.createdAt?.toDate() < lastEnd;
+    }).length;
+
+    return {
+        students: compare(currentStudents, lastStudents),
+        assignments: compare(currentAssignments, lastAssignments),
+        materials: compare(currentMaterials, lastMaterials)
+    };
+}
+
+function compare(current, previous) {
+    const diff = current - previous;
+
+    let percent = 0;
+    if (previous > 0) {
+        percent = Math.round((diff / previous) * 100);
+    } else if (current > 0) {
+        percent = 100;
     }
 
-    updateInsight(message);
-}
-
-function updateInsight(msg) {
-    const el = document.getElementById("insightBox");
-    if (el) el.textContent = msg;
-}
-
-function attachDashboardActions() {
-
-    document.getElementById("goClasses").onclick = () => {
-        loadPage("classes");
-    };
-
-    document.getElementById("goMaterials").onclick = () => {
-        loadPage("classes");
-    };
-
-    document.getElementById("goAssignments").onclick = () => {
-        loadPage("classes");
+    return {
+        value: current,
+        diff,
+        percent,
+        trend: diff > 0 ? "up" : diff < 0 ? "down" : "flat"
     };
 }
+
+
+
+function renderInsights(data) {
+
+    renderBox("studentsCount", "studentsTrend", (data.students));
+    renderBox("assignmentsCount", "assignmentsTrend" ,(data.assignments));
+    renderBox("materialsCount", "materialsTrend", (data.materials));
+
+    const engagement = 
+        Math.min(100,
+            Math.round(
+                (data.assignments.value * 10 + 
+                    data.materials.value * 5 +
+                    data.students.value * 2) / 10
+                )
+          );
+
+    const el = document.getElementById("engagementScore");
+    if (el) el.textContent = engagement + "%";
+}
+
+function renderBox(valueId, trendId, metric) {
+    const valueEl = document.getElementById(valueId);
+    const trendEl = document.getElementById(trendId);
+
+    if (!valueEl || !trendEl) return;
+
+    valueEl.textContent = formatNumber(metric.value);
+
+    let arrow = "-";
+    let color = "#999";
+
+    if (metric.trend === "up") {
+        arrow = "↑";
+        color = "#10b981";
+    } else if (metric.trend === "down") {
+        arrow = "&#8595";
+        color = "#ef4444";
+    }
+
+    trendEl.innerHTML = `
+        <span style="color:${color}; font-weight:600;">
+            ${arrow} ${Math.abs(metric.percent)}%
+        </span>
+    `;
+}
+
+function getWeekRanges() {
+    const now = new Date();
+
+    const startOfWeek = new Date(now);
+    startOfWeek.setHours(0,0,0,0);
+    startOfWeek.setDate(now.getDate() - now.getDay() + 1);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 7);
+
+    const lastWeekStart = new Date(startOfWeek);
+    lastWeekStart.setDate(startOfWeek.getDate() - 7);
+
+    const lastWeekEnd = new Date(startOfWeek);
+
+    return {
+        currentStart: startOfWeek,
+        currentEnd: endOfWeek,
+        lastStart: lastWeekStart,
+        lastEnd: lastWeekEnd
+    };
+}
+
+
 
 navItems.forEach(item => {
     item.addEventListener("click", () => {

@@ -623,14 +623,47 @@ select {
     display: flex;
     gap: 10px;
 }
+.action-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
 
 .action-card {
+    display: flex;
     background: white;
     border: 1px solid #eee;
-    padding: 10px;
+    padding: 14px;
     text-align: center;
-    border-radius: 12px;
+    border-radius: 16px;
     cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.action-card:hover {
+    transform: translateY(-2px);
+}
+
+.action-icon {
+    width: 45px;
+    height: 45px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.class .action-icon {
+    background: #4caf50;
+}
+
+.materials .action-icon {
+    background: #ff9800;
+}
+
+.task .action-icon {
+    background: #5d3fd3;
 }
 
 .dash-header-modern {
@@ -669,5 +702,69 @@ select {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 10px;
+}
+
+.insights-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+
+.insight-card {
+    display: flex;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 16px;
+    background: white;
+    border: 1px solid #eee;
+    align-items: center;
+    transition: 0.2s ease;
+}
+
+.insight-card:hover {
+    transform: translateY(-2px);
+}
+
+.insight-icon {
+    width: 45px;
+    height: 45px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.insight-info h4 {
+    font-size: 18px;
+    margin-bottom: 2px;
+}
+
+.insight-info p {
+    font-size: 13px;
+    color: #666;
+}
+
+.insight-info small {
+    font-size: 11px;
+    color: #999;
+}
+
+.students .insight-icon {
+    background: #4caf50;
+}
+
+.assignments .insight-icon {
+    background: #5d3fd3;
+}
+
+.materials .insight-icon {
+    background: #2196f3;
+}
+
+.engagement .insight-icon {
+    background: #ff9800;
 }
 
