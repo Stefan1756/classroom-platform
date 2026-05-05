@@ -1334,6 +1334,10 @@ function renderDashboardUI(user) {
                 </div>
 
             </div>
+
+            <div class="chart-card">
+                <canvas id="weeklyChart"></canvas>
+            </div>
         </div>
     `;
 }
@@ -1358,6 +1362,7 @@ function loadDashboardStats(teacherId) {
         loadDashboardStudents(classIds);
         loadDashboardMaterials(classIds);
         initDashhboardInsights(teacherId);
+        loadWeeklyChartData(classIds);
     });
 }
 
@@ -1587,6 +1592,118 @@ function getWeekRanges() {
     };
 }
 
+let weeklyChart;
+
+function initChart(labels) {
+    const ctx = document.getElementById("weeklyChart").getContext("2d");
+
+    if (weeklyChart) weeklyChart.destroy();
+
+    weeklyChart = new Chart(ctx, {
+        type: "line",
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: "Students",
+                    data: [],
+                    tension: 0.4,
+                    borderWidth: 3,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    yAxisID: "y",
+                    fill: true,
+                    background: "rgba(0,0,0,0.05)"
+
+                },
+                {
+                    label: "Engagement",
+                    data: [],
+                    tension: 0.4,
+                    borderWidth: 3,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    yAxisID: "y1",
+                    fill: true,
+                    background: "rgba(0,0,0,0.05)"
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: true
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    position: "left"
+                },
+                y1: {
+                    beginAtZero: true,
+                    position: "right",
+                    grid: {
+                        drawOnChartArea: false
+                    }
+                }
+            }
+        }
+    });
+}
+
+function getWeekDays() {
+    return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+}
+
+async function loadWeeklyChartData(classIds) {
+    const days = getWeekDays();
+
+    initChart(days);
+
+    const enrollSnap = await getDocs(collection(db, "enrollments"));
+
+    const studentsPerDay = Array(7).fill(0);
+    const engagementPerDay = Array(7).fill(0);
+
+    const now = new Date();
+    const start = new Date(now);
+    start.setDate(now.getDate() - now.getDate() + 1);
+    start.setHours(0,0,0,0);
+
+    enrollSnap.forEach(doc => {
+        const data = doc.data();
+
+        if (
+            classIds.includes(data.classId) &&
+            data.status === "approved" &&
+            data.createdAt
+        ) {
+            const date = data.createdAt.toDate();
+            const dayIndex = (date.getDay() + 6) % 7;
+
+            if (date >= start) {
+                studentsPerDay[dayIndex]++;
+            }
+        }
+    });
+
+    for (let i = 0; i < 7; i++) {
+        engagementPerDay[i] = Math.min(100, studentsPerDay[i] * 10);
+    }
+
+    updateChart(studentsPerDay, engagementPerDay);
+}
+
+function updateChart(students, engagement) {
+    if (!weeklyChart) return;
+
+    weeklyChart.data.datasets[0].data = students;
+    weeklyChart.data.datasets[0].data = engagement;
+
+    weeklyChart.update();
+}
 
 
 navItems.forEach(item => {

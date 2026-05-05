@@ -768,3 +768,10 @@ select {
     background: #ff9800;
 }
 
+.chart-card {
+    margin-top: 20px;
+    padding: 16px;
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid #e5e7eb;
+}
