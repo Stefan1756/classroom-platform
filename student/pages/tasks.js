@@ -1,41 +1,50 @@
 import { db } from "../../core/firebase.js";
 import { getUser, getUserData } from "../../core/auth.js";
+import { canAccessTasks } from "../../core/taskAccess.js";
+import { navigate } from "../../core/router.js";
 
 import {
   collection,
   query,
   where,
-  onSnapshot,
   getDocs,
   addDoc,
-  deleteDoc,
   doc,
   updateDoc,
-  getDoc,
-  serverTimestamp,
-  Timestamp
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-export function loadTasksPage() {
+export async function loadTasksPage() {
     const container = document.getElementById("contentArea");
 
     container.innerHTML = `
-        <div class="tasks-header">
-            <div>
-                <h2 id="todayDate"></h2>
-                <p id="todayLabel">Today</p>
-            </div>
+        <div class="tasks-page">
+
+            <div id="tasksContent">
+                <div class="tasks-header">
+                    <div>
+                        <h2 id="todayDate"></h2>
+                        <p id="todayLabel">Today</p>
+                    </div>
             
-            <button class="btn primary" id="addTaskBtn">
-                <span class="material-icons">add</span>
-                Add Task
-            </button>
+                    <button class="btn primary" id="addTaskBtn">
+                        <span class="material-icons">add</span>
+                            Add Task
+                    </button>
+                </div>
+        
+                <div class="week-calendar" id="weekCalendar"></div>
+        
+                <div class="task-list" id="taskList"></div>
+            </div>
         </div>
-        
-        <div class="week-calendar" id="weekCalendar"></div>
-        
-        <div class="task-list" id="taskList"></div>
     `;
+
+    const allowed = await canAccessTasks();
+
+    if (!allowed) {
+        showTasksPremiumOverlay();
+    }
 
     initDateHeader();
     generateWeek();
@@ -465,4 +474,66 @@ function showToast(message) {
     setTimeout(() => {
         toast.remove();
     }, 2500);
+}
+
+function showTasksPremiumOverlay() {
+
+    removePremiumOverlay();
+
+    const tasksContent = document.getElementById("tasksContent");
+
+    if (!tasksContent) return;
+
+    tasksContent.classList.add("tasks-blurred");
+
+    const overlay = document.createElement("div");
+
+    overlay.id = "premiumOverlay";
+
+    overlay.className = "premium-overlay";
+
+    overlay.innerHTML = `
+        <div class="premium-box">
+        
+            <span class="material-icons premium-icon">
+                workspace_premium
+            </span>
+            
+            <h2>Premium Feature</h2>
+            
+            <p>
+                Upgrade to 1 Month Plan
+                to create and manage tasks.
+            </p>
+            
+            <button id="upgradePlanBtn">
+                Upgrade Now
+            </button>
+        </div>
+    `;
+
+    tasksContent.appendChild(overlay);
+
+    document
+        .getElementById("upgradePlanBtn")
+        .onclick = () => {
+
+            removePremiumOverlay();
+             
+            navigate("subscription");
+        };
+}
+
+function removePremiumOverlay() {
+    const overlay = document.getElementById("premiumOverlay");
+
+    if (overlay) {
+        overlay.remove();
+    }
+
+    const tasksContent = document.getElementById("tasksContent");
+
+    if (tasksContent) {
+        tasksContent.classList.remove("tasks-blurred");
+    }
 }

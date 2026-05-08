@@ -45,7 +45,7 @@ function getDashboardSkeleton() {
   `;
 }
 
-function renderDashboard() {
+async function renderDashboard() {
   const container = document.getElementById("contentArea");
 
   container.innerHTML =`
@@ -79,25 +79,14 @@ function renderDashboard() {
         </div>
     </div>
 
+    <div id="subscriptionStatusCard"></div>
+
     <div class="dash-grid">
         <div id="nextTaskCard"></div>
         <div id="dailyMissionCard"></div>
     </div>
 
-
-    <div class="quick-actions">
-        <button id="goTasks">
-            <span class="material-icons">task</span>
-        </button>
-
-        <button id="goClasses">
-            <span class="material-icons">school</span>
-        </button>
-
-        <button id="goProfile">
-            <span class="material-icons">person</span>
-        </button>
-    </div>
+    
 
     <div class="section">
         <div class="row space">
@@ -107,13 +96,7 @@ function renderDashboard() {
         <div class="class-scroll" id="dashClasses"></div>
     </div>
 
-    <div class="section">
-        <div class="row space">
-            <h4>Upcoming Tasks</h4>
-        </div>
-
-        <div id="dashTasks"></div>
-    </div>
+    
 
   </div>
 `;
@@ -132,11 +115,11 @@ async function loadDashboardData() {
 
   loadTodayStats();
   loadDashboardClasses();
-  loadDashboardTasks();
-  initDashboardActions();
   loadNextTaskCountdown();
   loadDailyMission();
+  loadSubscriptionStatus();
 }
+
 
 async function loadTodayStats() {
   const today = new Date().toISOString().split("T")[0];
@@ -194,41 +177,7 @@ async function loadDashboardClasses() {
   }
 }
 
-async function loadDashboardTasks() {
-  const container = document.getElementById("dashTasks");
 
-  const snap = await getDocs(query(
-    collection(db, "tasks"),
-    where("studentId", "==", getUser().uid)
-  )); 
-
-  const tasks = snap.docs.map(d => d.data());
-
-  tasks.sort((a, b) => (a.date || "").localeCompare(b.date));
-
-  container.innerHTML = "";
-
-  tasks.slice(0, 3).forEach(t => {
-    const item = document.createElement("div");
-    item.className = "task-preview";
-
-    item.innerHTML = `
-        <div>
-            <strong>${t.title}</strong>
-            <small>${t.date || ""}</small>
-        </div>
-        <span class="material-icons">arrow_forward</span>
-    `;
-
-    container.appendChild(item);
-  });
-}
-
-function initDashboardActions() {
-  document.getElementById("goTasks").onclick = () => navigate("tasks");
-  document.getElementById("goClasses").onclick = () => navigate("classes");
-  document.getElementById("goProfile").onclick = () => navigate("profile");
-}
 
 async function loadNextTaskCountdown() {
   const container = document.getElementById("nextTaskCard");
@@ -412,3 +361,162 @@ async function updateMissionProgress(type) {
 
     loadDailyMission();
 }
+
+async function loadSubscriptionStatus() {
+    const userDoc = await getDoc(
+          doc(db, "users", getUser().uid)
+    );
+
+    if (!userDoc.exists()) return;
+
+    const user = userDoc.data();
+
+    const existing = document.getElementById("subscriptionStatusCard");
+
+    if (existing) existing.remove();
+
+    const usedDownloads = user.downloadUsed || 0;
+
+    const downloadLimit = user.downloadLimit || 0;
+
+    const unlimitedDownloads =
+        downloadLimit === -1;
+
+    const dashboard = document.querySelector(".dashboard-modern");
+
+    const card = document.createElement("div");
+
+    card.id = "subscriptionStatusCard";
+
+
+    if (
+        !user.subscriptionStatus ||
+        user.subscriptionStatus !== "active"
+    ) {
+
+        card.className = "subscription-warning";
+
+        card.innerHTML = `
+        <div class="sub-top">
+            <span class="material-icons">lock</span>
+            <div>
+                <h3>No Active Subscription</h3>
+                <p>Your learning access is currently locked</p>
+            </div>
+        </div>
+            
+        <button id="renewPlanBtn">
+                Subscribe Now
+        </button>
+    `;
+
+    dashboard.prepend(card);
+
+    document.getElementById("renewPlanBtn").onclick = () => {
+      navigate("subscription");
+    };
+
+    return;
+  }
+
+  let endDate;
+  
+  if (user.subscriptionEnd?.toDate) {
+      endDate = user.subscriptionEnd.toDate();
+  } else {
+    endDate = new Date(user.subscriptionEnd);
+  }
+
+  const now = new Date();
+
+  const diff = endDate - now;
+
+  if (diff <= 0) {
+     
+      await updateDoc(
+        doc(db, "users", getUser().uid),
+         {
+            subscriptionStatus: "expired",
+            hasActiveSubscription: false
+          }
+       );
+
+       navigate("subscription");
+
+       return;
+  }
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+  const hours = Math.floor(
+        (diff / (1000 * 60 * 60)) % 24
+  );
+
+  card.className = "subscription-active-card";
+
+  const isTrial =
+      user.subscriptionPlanId === "free_trial";
+
+  card.innerHTML = `
+          <div class="sub-headerr">
+              <div>
+                  <p class="plan-label">
+                    ${isTrial ? "FREE ACCESS" : "PREMIUM PLAN"}
+                  </p>
+                  
+                  <h3>${user.subscriptionPlan}</h3>
+              </div>
+
+              <span class="material-icons verified">
+                   verified
+              </span>
+          </div>
+
+          <div class="countdown-ring">
+              <h2>${days} days</h2>
+              <small>${hours}h left</small>
+          </div>
+
+          <div class="sub-feature">
+              <span class="material-icons">
+              school
+              </span>
+
+              <div class="sub-feature-info">
+                 <strong>
+                      ${
+                        user.classLimit === -1
+                        ? "Unlimited Classes"
+                        : `${user.classLimit} Classes`
+                      }
+                </strong>
+              </div>
+          </div>
+
+          <div class="sub-feature">
+              <span class="material-icons">
+              download
+              </span>
+
+              <div class="sub-feature-info">
+                <strong>
+                      ${
+                        unlimitedDownloads
+                        ? "Unlimited Downloads"
+                        : `${usedDownloads} / ${downloadLimit} Used`
+                      }
+                </strong>
+              </div>
+          </div>
+
+          <div class="sub-progress">
+              <div class="sub-progress-fill"></div>
+          </div>
+              
+          <p class="expire-text">
+              Access expires soon
+          </p>
+      `;
+
+      dashboard.prepend(card);
+  }

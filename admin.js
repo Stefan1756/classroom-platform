@@ -11,9 +11,12 @@ import {
     getDocs,
     addDoc,
     updateDoc,
+    serverTimestamp,
+    Timestamp,
     doc} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import { loadUsers, initUserControls } from "./admin-users.js";
+import { loadSubscription } from "./student/pages/subscription.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDq_02L2kHPr5jgjblWk_Vrs_JcRrjSBdA",
@@ -79,6 +82,10 @@ function loadPage(page) {
 
         loadUsers();
         initUserControls();
+    }
+
+    if (page === "subscriptions") {
+        loadSubscriptionsPage();
     }
 
     if (page === "settings") {
@@ -289,4 +296,149 @@ async function sendBroadcast() {
 
   alert("Broadcast sent!");
 }
+
+function loadSubscriptionsPage() {
+    contentArea.innerHTML = `
+        <h3>Subscription Verification</h3>
+        
+        <div class="card">
+            <h4>Pending Payments</h4>
+            <div id="subscriptionList"></div>
+        </div>
+    `;
+
+    loadPendingSubscriptions();
+}
+
+async function loadPendingSubscriptions() {
+    const container = document.getElementById("subscriptionList");
+
+    const q = query(
+        collection(db, "subscriptions"),
+        where("status", "==", "pending")
+    );
+
+    const snap = await getDocs(q);
+
+    container.innerHTML = "";
+
+    if (snap.empty) {
+        container.innerHTML = `<p>No pending requests</p>`;
+        return;
+    }
+
+    snap.forEach(docSnap => {
+        const sub = docSnap.data();
+
+        const card = document.createElement("div");
+        card.className = "subscription-card";
+
+        card.innerHTML = `
+            <p><strong>User ID:</strong> ${sub.userId}</p>
+            <p><strong>Plan:</strong> ${sub.planName}</p>
+            <p><strong>Reference:</strong> ${sub.paymentCode || "N/A"}</p>
+            
+            <div class="actions">
+                <button class="btn approve">Approve</button>
+                <button class="btn reject">Reject</button>
+            </div>
+        `;
+
+        const [approveBtn, rejectBtn] = card.querySelectorAll("button");
+
+        approveBtn.onclick = () => approveSubscription(docSnap.id, sub);
+        rejectBtn.onclick = () => rejectSubscription(docSnap.id, sub);
+
+        container.appendChild(card);
+    });
+}
+
+async function approveSubscription(id, sub) {
+    const now = new Date();
+
+    let durationDays = 0;
+    let classLimit = 0;
+    let downloadLimit = 0;
+
+    if (sub.planId === "plan_2weeks") {
+        durationDays = 14;
+        classLimit = 2;
+        downloadLimit = 5;
+    } 
+    if (sub.planId === "plan_1month") {
+        durationDays = 30; 
+        classLimit = -1;
+        downloadLimit = -1;
+    } 
+
+    const expiry = new Date();
+    expiry.setDate(expiry.getDate() + durationDays);
+
+    await updateDoc(doc(db, "users", sub.userId), {
+
+            subscriptionPlan: sub.planName,
+            subscriptionPlanId: sub.planId,
+            classLimit,
+            downloadLimit,
+            downloadUsed: 0,
+            subscriptionStatus: "active",
+            subscriptionStart: Timestamp.fromDate(now),
+            subscriptionEnd: Timestamp.fromDate(expiry),
+            hasActiveSubscription: true
+    });
+
+    await updateDoc(doc(db, "subscriptions", id), {
+        status: "approved",
+        approvedAt: serverTimestamp(),
+        startDate: Timestamp.fromDate(now),
+        endDate: Timestamp.fromDate(expiry)
+    });
+    alert("Subscription Approved");
+
+    loadPendingSubscriptions();
+}
+
+async function rejectSubscription(id) {
+    await updateDoc(doc(db, "subscriptions", id), {
+        status: "rejected"
+    });
+
+    alert("Subscription Rejected");
+
+    loadPendingSubscriptions();
+}
+
+async function activateFreeTrials() {
+    
+    const usersSnap = await getDocs(collection(db, "users"));
+
+    const now = new Date();
+
+    for (const userDoc of usersSnap.docs) {
+
+        const user = userDoc.data();
+
+        if (user.role !== "student") continue;
+
+        if (user.subscriptionStatus === "active") continue;
+
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + 7);
+
+        await updateDoc(doc(db, "users", userDoc.id), { 
+                subscriptionPlan: "Free Trial",
+                subscriptionPlanId: "free_trial",
+                subscriptionStatus: "active",
+                classLimit: -1,
+                downloadLimit: -1,
+                downloadUsed: 0,
+                subscriptionStart: Timestamp.fromDate(now),
+                subscriptionEnd: Timestamp.fromDate(endDate),
+                hasActiveSubscription: true
+        });
+    }
+
+    alert("Free trials activated!");
+}
+
 loadPage("dashboard");

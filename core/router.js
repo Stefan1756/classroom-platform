@@ -1,4 +1,4 @@
-// core/router.js
+import { checkPageAccess } from "./access.js";
 
 let routes = {};
 
@@ -6,7 +6,13 @@ export function registerRoutes(r) {
   routes = r;
 }
 
-export function navigate(page) {
+export async function navigate(page) {
+  const allowed = await checkPageAccess(page);
+
+  if (!allowed) {
+    page = "subscription";
+  }
+
   if (!routes[page]) {
     console.error("Route not found:", page);
     return;

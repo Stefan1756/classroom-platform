@@ -1,7 +1,9 @@
 import { db } from "../../core/firebase.js";
 import { storage } from "../../core/firebase.js";
 import { getUser } from "../../core/auth.js";
-
+import { canAccessClass } from "../../core/classAccess.js";
+import { canJoinMoreClasses } from "../../core/planAccess.js";
+import { canDownloadResource, registerDownload } from "../../core/downloadAccess.js";
 import { 
     ref,
     uploadBytes,
@@ -21,6 +23,7 @@ import {
   getDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { navigate } from "../../core/router.js";
 
 let sortMode = "recent";
 
@@ -105,7 +108,7 @@ function filterClasses(category) {
 
 let isFirstLoad = true; 
 
-function loadMyClasses() {
+async function loadMyClasses() {
     const currentUser = getUser();
 
     const list = document.getElementById("classList");
@@ -197,6 +200,8 @@ function loadMyClasses() {
 
           const card = document.createElement("div");
 
+          
+
            card.innerHTML = `
            
                 <div class="class-card-new">
@@ -251,8 +256,20 @@ function attachSearchFilter() {
     });
 }
 
-function openStudentClass(classId, classData) {
+async function openStudentClass(classId, classData) {
   const content = document.getElementById("contentArea");
+
+  const allowed = await canAccessClass(classId);
+
+          if (!allowed) {
+            alert(
+              "This class is locked by your current subscription plan."
+            );
+
+            navigate("subscription");
+
+            return;
+          }
 
   content.innerHTML = `
   <div class="class-page">
@@ -337,8 +354,18 @@ function initStudentTabs(classId) {
   loadStudentMaterials(classId);
 }
 
-function loadStudentMaterials(classId) {
+async function loadStudentMaterials(classId) {
   const container = document.getElementById("classContent");
+
+   const result = await canDownloadResource();
+
+    if (!result.allowed) {
+      alert(result.message);
+
+      navigate("subscription");
+
+      return;
+    }
 
   const q = query(
     collection(db, "materials"),
@@ -352,6 +379,8 @@ function loadStudentMaterials(classId) {
       container.innerHTML = `<p>No materials yet</p>`;
       return;
     }
+
+   
 
     snapshot.forEach(doc => {
       const m = doc.data();
@@ -371,7 +400,7 @@ function loadStudentMaterials(classId) {
         } else if (m.fileType.startsWith("video")) {
           preview = `<video controls class="material-video"><source src="${m.fileUrl}"></video>`;
         } else {
-          preview = `<a href="${m.fileUrl}" target="_blank">Open File</a>`;
+          preview = `<a href="${m.fileUrl}" target="_blank">Download Notes</a>`;
         }
       }
 
@@ -381,8 +410,11 @@ function loadStudentMaterials(classId) {
       `;
 
       container.appendChild(card);
+
+      
     });
   });
+  await registerDownload();
 }
 
 function loadStudentAssignments(classId) {
@@ -578,6 +610,15 @@ function attachDeleteEvents() {
 
 async function loadStudentExams(classId) {
   const container = document.getElementById("classContent");
+  const result = await canDownloadResource();
+
+    if (!result.allowed) {
+      alert(result.message);
+
+      navigate("subscription");
+
+      return;
+    }
 
   const q = query(
     collection(db, "examinations"),
@@ -620,10 +661,22 @@ async function loadStudentExams(classId) {
       container.appendChild(card);
     });
   });   
+
+  await registerDownload();
 }
 
 async function loadStudentPapers(classId) {
   const container = document.getElementById("classContent");
+
+  const result = await canDownloadResource();
+
+    if (!result.allowed) {
+      alert(result.message);
+
+      navigate("subscription");
+
+      return;
+    }
 
   const q = query(
     collection(db, "pastpapers"),
@@ -659,6 +712,8 @@ async function loadStudentPapers(classId) {
       container.appendChild(card);
     });
   });   
+
+  await registerDownload();
 }
 
 function renderEmptyState(icon, title, message) {
@@ -760,6 +815,16 @@ async function requestJoin(classId) {
 
   if (!existing.empty) {
     return alert("Already requested or enrolled");
+  }
+
+  const allowed = await canJoinMoreClasses();
+
+  if (!allowed) {
+    alert(
+      "Your subscription class limit has been reached."
+    );
+
+    return;
   }
 
   await addDoc(collection(db, "enrollments"), {

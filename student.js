@@ -4,6 +4,8 @@ import { loadDashboard } from "./student/pages/dashboard.js";
 import { loadClasses } from "./student/pages/classes.js";
 import { loadTasksPage } from "./student/pages/tasks.js";
 import { loadProfile } from "./student/pages/profile.js";
+import { loadSubscription } from "./student/pages/subscription.js";
+import { loadPaymentPage } from "./student/pages/payment.js";
 
 
 initAuth((user) => {
@@ -12,7 +14,9 @@ initAuth((user) => {
     dashboard: loadDashboard,
     classes: loadClasses,
     tasks: loadTasksPage,
-    profile: loadProfile
+    profile: loadProfile,
+    subscription: loadSubscription,
+    payment: loadPaymentPage
   });
 
   setupNav();

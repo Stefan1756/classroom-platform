@@ -487,3 +487,37 @@ button {
     color: black;
     cursor: pointer;
 }
+
+.subscription-card {
+    border: 1px solid #eee;
+    padding: 16px;
+    border-radius: 16px;
+    margin-bottom: 12px;
+    background: #fff;
+}
+
+.subscription-card p {
+    margin: 6px 0;
+    font-size: 14px;
+    text-align: left;
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.btn.approve {
+    background: #e6f9f0;
+    color: #00a86b;
+    border: 1px solid #00a86b;
+}
+
+.btn.reject {
+    background: #fff0f0;
+    color: #e53935;
+    border: 1px solid #e53935;
+}
+
+
