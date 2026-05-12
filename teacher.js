@@ -144,7 +144,7 @@ function loadPage(page) {
             
             <div class="wallet-actions">
                 
-                <button class="wallet-action-btn">
+                <button class="wallet-action-btn" id="openWithdrawBtn">
                 
                     <span class="material-icons">
                         south_west
@@ -184,8 +184,11 @@ function loadPage(page) {
 
         </div>
     `;
-
     loadWalletOverview();
+    
+    document.getElementById("openWithdrawBtn").onclick = () => {
+        loadWithdrawPage();
+    }
 
     }
 }
@@ -1914,6 +1917,8 @@ async function loadWalletOverview() {
     const snap = await getDocs(q);
 
     let total = 0;
+    let pending = 0;
+    let withdrawn = 0;
 
     const container = document.getElementById("walletEarningsList");
 
@@ -1954,6 +1959,8 @@ async function loadWalletOverview() {
         const earning = docSnap.data();
 
         total += earning.amount;
+        pending += earning.pendingWithdrawal || 0;
+        withdrawn += earning.withdrawnAmount || 0;
 
         const item = document.createElement("div");
 
@@ -1980,7 +1987,278 @@ async function loadWalletOverview() {
 
     });
 
-    document.getElementById("walletBalance").textContent = `TZS ${total.toLocaleString()}`;
+    const available = total - pending - withdrawn;
+
+    document.getElementById("walletBalance").textContent = `TZS ${available.toLocaleString()}`;
+
+    document.getElementById(
+        "pendingBalance"
+    ).textContent = `TZS ${pending.toLocaleString()}`;
+
+    document.getElementById(
+        "withdrawnBalance"
+    ).textContent = `TZS ${withdrawn.toLocaleString()}`;
+}
+
+function loadWithdrawPage() {
+    contentArea.innerHTML = `
+    
+    <div class="withdraw-page">
+    
+        <div class="withdraw-header">
+        
+            <button id="backWalletBtn">
+                <span class="material-icons">
+                    arrow_back
+                </span>
+            </button>
+            
+            <h2>Withdraw Funds</h2>
+            
+        </div>
+        
+        <div class="withdraw-balance-card">
+        
+            <p>Available Balance</p>
+            
+            <h1 id="withdrawAvailableBalance">
+                TZS 0
+            </h1>
+            
+        </div>
+        
+        <div class="withdraw-form-card">
+        
+            <h3>Withdraw Details</h3>
+            
+            <div class="input-group">
+            
+                <label>Full Name</label>
+                
+                <input
+                    type="text"
+                    id="withdrawName"
+                    placeholder="Enter full name"
+                />
+                
+            </div>
+            
+            <div class="input-group">
+            
+                <label>Receiving Number</label>
+                
+                <input
+                    type="text"
+                    id="withdrawNumber"
+                    placeholder="Mobile number / Bank Number"
+                />
+                
+            </div>
+            
+            <div class="input-group">
+            
+                <label>Amount</label>
+                
+                <input
+                    type="number"
+                    id="withdrawAmount"
+                    placeholder="Minimum TZS 10000"
+                />
+                
+            </div>
+            
+            <div class="withdraw-rules">
+            
+                <div class="rule-item">
+                    <span class="material-icons">
+                        info
+                    </span>
+                
+                    <p>
+                        Minimum withdraw is TZS 10,000
+                    </P>
+                </div>
+                
+                <div class="rule-item">
+                    <span class="material-icons">
+                        percent
+                    </span>
+                
+                    <p>
+                        Transaction fee is 10%
+                        per withdraw
+                    </P>
+                </div>
+                
+                <div class="rule-item">
+                    <span class="material-icons">
+                        schedule
+                    </span>
+                
+                    <p>
+                        Withdraw are manually
+                        verified by admin
+                    </P>
+                </div>
+
+            </div>
+            
+            <div class="withdraw-summary">
+            
+                <div>
+                    <small>Transaction Fee</small>
+                    <strong id="feePreview">
+                        TZS 0
+                    </strong>
+                </div>
+                
+                <div>
+                    <small>You Receive</small>
+                    <strong id="receivePreview">
+                        TZS 0
+                    </strong>
+                </div>
+                
+            </div>
+            
+            <button class="withdraw-btn" id="submitWithdrawBtn">
+                Withdraw
+            </button>
+        
+        </div>
+        
+    </div>
+    
+    `;
+
+    loadWithdrawBalance();
+}
+
+async function loadWithdrawBalance() {
+    const currentUser = auth.currentUser;
+
+    if (!currentUser) return;
+
+    const q = query(
+        collection(db, "teacherEarnings"),
+        where("teacherId", "==", currentUser.uid)
+    );
+
+    const snap = await getDocs(q);
+
+    let total = 0;
+    let pending = 0;
+    let withdrawn = 0;
+
+    snap.forEach(docSnap => {
+        const earning = docSnap.data();
+
+        total += earning.amount || 0;
+        pending += earning.pendingWithdrawal || 0;
+        withdrawn += earning.withdrawnAmount || 0;
+    });
+
+    const available = total - pending - withdrawn;
+
+    document.getElementById("withdrawAvailableBalance").textContent =
+        `TZS ${available.toLocaleString()}`;
+
+    const amountInput = document.getElementById("withdrawAmount");
+
+    amountInput.addEventListener("input", () => {
+        const amount = Number(amountInput.value) || 0;
+
+        const fee = Math.floor(amount * 0.1);
+
+        const receive = amount - fee;
+
+        document.getElementById("feePreview").textContent = `TZS ${fee.toLocaleString()}`;
+
+        document.getElementById("receivePreview").textContent = `TZS ${receive.toLocaleString()}`;
+    });
+
+    document.getElementById("submitWithdrawBtn").onclick = () => {
+        submitWithdrawRequest();
+    };
+
+    document.getElementById("backWalletBtn").onclick = () => {
+        loadWalletOverview();
+    };
+}
+
+async function submitWithdrawRequest(availableBalance) {
+    const currentUser = auth.currentUser;
+
+    if (!currentUser) return;
+
+    const name =
+        document.getElementById(
+            "withdrawName"
+        ).value.trim();
+
+    const number =
+        document.getElementById(
+            "withdrawNumber"
+        ).value.trim();
+
+    const amount =
+        Number(
+            document.getElementById(
+            "withdrawAmount"
+        ).value
+    );
+
+    if (!name || !number || !amount) {
+        alert("fill all fields");
+
+        return;
+    }
+
+    if (amount < 10000) {
+        alert(
+            "Minimum withdraw is TZS 10,000"
+        );
+
+        return;
+    }
+
+    if (availableBalance <= 0) {
+        alert(
+            "Insufficient balance"
+        );
+
+        return;
+    }
+
+    if (amount > availableBalance ) {
+        alert(
+            "Withdraw exceeds available balance"
+        );
+
+        return;
+    }
+
+    const fee =  Math.floor(amount * 0.1);
+
+    const receiveAmount = amount - fee;
+
+    await addDoc(
+        collection(db, "withdrawRequests"),
+        {
+            teacherId: currentUser.uid,
+            teacherName: name,
+            receiverNumber: number,
+            amount,
+            fee,
+            receiveAmount,
+            status: "pending",
+            createdAt: serverTimestamp()
+        }
+    );
+
+    alert("Request submitted");
+
+    loadWalletPage();
 }
 
 loadPage("dashboard");
