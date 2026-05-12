@@ -2,6 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
+
 import { 
     getStorage,
     ref,
@@ -21,6 +22,8 @@ import {
     getDoc,
     updateDoc,
     doc} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+import { navigate } from "./core/router.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDq_02L2kHPr5jgjblWk_Vrs_JcRrjSBdA",
@@ -92,6 +95,98 @@ function loadPage(page) {
         container.innerHTML = renderProfileSkeleton();
 
         initProfileData();
+    }
+
+    if (page === "wallet") {
+        contentArea.innerHTML = `
+        <div class="wallet-page">
+        
+            <div class="wallet-hero">
+             
+                <div class="wallet-balance-card">
+                
+                    <div class="wallet-balance-top">
+                    
+                        <div>
+                            <p>Available Balance</p>
+                            <h1 id="walletBalance">
+                                TZS 0
+                            </h1>
+                        </div>
+                        
+                        <div class="wallet-main-icon">
+                            <span class="material-icons">account_balance_wallet</span>
+                        </div>
+                    
+                    </div>
+                    
+                    <div class="wallet-balance-footer">
+                    
+                        <div>
+                            <small>Pending</small>
+                            <strong id="pendingBalance">
+                                TZS 0
+                            </strong>
+                        </div>
+                        
+                        <div>
+                            <small>Withdrawn</small>
+                            <strong id="withdrawnBalance">
+                                TZS 0
+                            </strong>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+            
+            <div class="wallet-actions">
+                
+                <button class="wallet-action-btn">
+                
+                    <span class="material-icons">
+                        south_west
+                    </span>
+
+                    Withdraw
+                
+                </button> 
+                
+                <button class="wallet-action-btn">
+                
+                    <span class="material-icons">
+                        receipt_long
+                    </span>
+
+                    History
+                
+                </button>
+                
+            </div>
+            
+            <div class="wallet-section">
+            
+                <div class="wallet-section-header">
+                
+                    <h3>Recent Earnings</h3>
+                    
+                    <span class="material-icons">
+                        trending_up
+                    </span>
+                    
+                </div>
+                
+                <div id="walletEarningsList"></div>
+                
+            </div>
+
+        </div>
+    `;
+
+    loadWalletOverview();
+
     }
 }
 
@@ -1269,6 +1364,36 @@ function renderDashboardUI(user) {
                 <h2>Hello ${user?.username || "Teacher"}</h2>
                 <p>${today}</p>
             </div>
+
+                <div class="wallet-entry-card">
+                    <div class="wallet-glow"></div>
+                    <div class="wallet-top">
+                        <div class="wallet-icon-wrap">
+                            <span class="material-icons">account_balance_wallet</span>
+                        </div>
+
+                        <div>
+                            <p id="teacherTotalEarnings">TZS 0</p>
+
+                            <h3>
+                                Manage Earnings
+                            </h3>
+                        </div>
+                    </div>
+
+                    <p class="wallet-desc">
+                        Track earnings, withdrawals, payouts and
+                        transaction history in one secure place.
+                    </p>
+
+                    <button id="openWalletPage">
+                        Open Wallet
+                        <span class="material-icons">
+                            arrow_forward
+                        </span>
+                    </button>
+                </div>
+            </div>
             
             <div class="dash-stats-modern">
                 <div class="dash-card">
@@ -1340,6 +1465,9 @@ function renderDashboardUI(user) {
             </div>
         </div>
     `;
+    document.getElementById("openWalletPage").onclick = () => {
+        loadPage("wallet");
+    }
 }
 
 function loadDashboardStats(teacherId) {
@@ -1363,6 +1491,7 @@ function loadDashboardStats(teacherId) {
         loadDashboardMaterials(classIds);
         initDashhboardInsights(teacherId);
         loadWeeklyChartData(classIds);
+        loadTeacherEarnings();
     });
 }
 
@@ -1730,6 +1859,97 @@ async function deleteClass(classId) {
     } catch (err) {
         console.error("Delete failed:", err);
     }
+}
+
+async function loadTeacherEarnings() {
+    const currentUser = auth.currentUser;
+
+    if (!currentUser) return;
+    
+    const totalEl =
+        document.getElementById("teacherTotalEarnings");
+
+
+    const q = query(
+        collection(db, "teacherEarnings"),
+        where(
+            "teacherId",
+            "==",
+            currentUser.uid
+        )
+    );
+
+    const snap = await getDocs(q);
+
+    let total = 0;
+
+    snap.forEach(docSnap => {
+        const earning = docSnap.data();
+
+        total += earning.amount;
+
+    });
+
+    totalEl.textContent = `TZS ${total.toLocaleString()}`;
+}
+
+async function loadWalletOverview() {
+    const currentUser = auth.currentUser;
+
+    if (!currentUser) return;
+    
+    const totalEl =
+        document.getElementById("teacherTotalEarnings");
+
+
+    const q = query(
+        collection(db, "teacherEarnings"),
+        where(
+            "teacherId",
+            "==",
+            currentUser.uid
+        )
+    );
+
+    const snap = await getDocs(q);
+
+    let total = 0;
+
+    const container = document.getElementById("walletEarningsList");
+
+    container.innerHTML = "";
+
+    snap.forEach(docSnap => {
+        const earning = docSnap.data();
+
+        total += earning.amount;
+
+        const item = document.createElement("div");
+
+        item.className = "wallet-earning-item";
+
+        item.innerHTML = `
+            <div>
+            
+                <strong>
+                    ${earning.studentName}
+                </strong>
+                
+                <p>
+                    ${earning.subscriptionPlan}
+                </p>
+                
+            </div>
+            
+            <h4>
+                +TZS ${earning.amount}
+            </h4>
+        `;
+        container.appendChild(item);
+
+    });
+
+    document.getElementById("walletBalance").textContent = `TZS ${total.toLocaleString()}`;
 }
 
 loadPage("dashboard");

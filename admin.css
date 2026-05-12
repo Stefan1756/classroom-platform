@@ -520,4 +520,11 @@ button {
     border: 1px solid #e53935;
 }
 
-
+input {
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid #cccc;
+    margin-top: 5px;
+    width: 100%;
+    outline: none;
+}

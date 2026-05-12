@@ -17,6 +17,7 @@ import {
 
 import { loadUsers, initUserControls } from "./admin-users.js";
 import { loadSubscription } from "./student/pages/subscription.js";
+import { getUser } from "./core/auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDq_02L2kHPr5jgjblWk_Vrs_JcRrjSBdA",
@@ -187,24 +188,45 @@ function loadDashboard() {
             </div>
         </div>
 
-        <div class="card">
-            <h4>Broadcast Message</h4>
+        <div class="card earnings-card">
 
-            <select id="targetRole">
-                <option value="all">All Users</option>
-                <option value="student">Students</option>
-                <option value="teacher">Teachers</option>
+            <div class="row space">
+                <h4>Record Teacher Earnings</h4>
+                <span class="material-icons">payments</span>
+            </div>
+            
+            <select id="earningTeacher">
+                <option value="">Select Teacher</option>
             </select>
 
-            <textarea id="broadcastMessage" placeholder="Type message..."></textarea>
+            <select id="earningPlan">
+                <option value="2 Weeks">2 Weeks Plan</option>
+                <option value="1 Month">1 Month Plan</option>
+            </select>
 
-            <button class="btn primary" id="sendBroadcastBtn">
-                Send Message
+            <input
+                type="number"
+                id="earningAmount"
+                placeholder="Amount"
+            />
+
+            <input
+                type="text"
+                id="earningStudent"
+                placeholder="Student Name"
+            />
+
+            <button
+                class="btn primary"
+                id="recordEarningBtn"
+            >
+                Record
             </button>
         </div>
     `;
 
-    document.getElementById("sendBroadcastBtn").onclick = sendBroadcast;
+    document.getElementById("recordEarningBtn").onclick = recordTeacherEarning;
+
 
     onSnapshot(collection(db, "users"), (snapshot) => {
         let total = 0, teachers = 0, pending= 0;
@@ -237,7 +259,7 @@ function loadDashboard() {
         });
     });
 
-    
+    loadTeachersForEarnings();
 }
 
 function loadSettings() {
@@ -259,43 +281,7 @@ function loadSettings() {
         `;
     };
 
-async function sendBroadcast() {
-  const message = document.getElementById("broadcastMessage").value;
-  const role = document.getElementById("targetRole").value;
 
-  if (!message) return alert("Message required");
-
-  let usersQuery;
-
-  if (role === "all") {
-    usersQuery = collection(db, "users");
-  } else {
-    usersQuery = query(
-      collection(db, "users"),
-      where("role", "==", role)
-    );
-  }
-
-  const usersSnap = await getDocs(usersQuery);
-
-  usersSnap.forEach(async (userDoc) => {
-    const userId = userDoc.id;
-
-    await addDoc(collection(db, "notifications"), {
-      userId,
-      type: "broadcast",
-      message,
-      read: false,
-      isBroadcast: true,
-      targetRole: role,
-      createdAt: serverTimestamp()
-    });
-  });
-
-  document.getElementById("broadcastMessage").value = "";
-
-  alert("Broadcast sent!");
-}
 
 function loadSubscriptionsPage() {
     contentArea.innerHTML = `
@@ -439,6 +425,64 @@ async function activateFreeTrials() {
     }
 
     alert("Free trials activated!");
+}
+
+async function loadTeachersForEarnings() {
+    const select = document.getElementById("earningTeacher");
+    const snap = await getDocs(query(
+        collection(db, "users"),
+        where("role", "==", "teacher")
+    )
+);
+
+snap.forEach(docSnap => {
+    const teacher = docSnap.data();
+    const option = document.createElement("option");
+
+    option.value = docSnap.id;
+
+    option.textContent = teacher.username || teacher.email;
+
+    select.appendChild(option);
+});
+}
+
+async function recordTeacherEarning() {
+    const teacherId = document.getElementById("earningTeacher").value;
+
+    const teacherName = document.getElementById("earningTeacher")
+        .selectedOptions[0]
+        .textContent;
+
+    const amount =
+        Number(
+            document.getElementById("earningAmount").value
+        );
+
+    const studentName = document.getElementById("earningStudent").value;
+
+    const plan = document.getElementById("earningPlan").value;
+
+    if (!teacherId || !amount) {
+        alert("Complete all fields");
+
+        return;
+    }
+
+    await addDoc(
+        collection(db, "teacherEarnings"),
+        {
+            teacherId,
+            teacherName,
+            studentName,
+            subscriptionPlan: plan,
+            amount,
+            recordedAt: serverTimestamp()
+        }
+    );
+
+    alert("earning recorded");
+
 }
 
 loadPage("dashboard");

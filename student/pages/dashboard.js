@@ -446,12 +446,6 @@ async function loadSubscriptionStatus() {
        return;
   }
 
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-  const hours = Math.floor(
-        (diff / (1000 * 60 * 60)) % 24
-  );
-
   card.className = "subscription-active-card";
 
   const isTrial =
@@ -473,8 +467,8 @@ async function loadSubscriptionStatus() {
           </div>
 
           <div class="countdown-ring">
-              <h2>${days} days</h2>
-              <small>${hours}h left</small>
+              <h2 id="subDays">0 days</h2>
+              <small id="subHours">0h left</small>
           </div>
 
           <div class="sub-feature">
@@ -519,4 +513,46 @@ async function loadSubscriptionStatus() {
       `;
 
       dashboard.prepend(card);
+      startSubscriptionCountdown(endDate);
+  }
+
+  function startSubscriptionCountdown(endDate) {
+
+      function updateCountdown() {
+          const now = new Date();
+
+          const diff = endDate - now;
+
+          if (diff <= 0) {
+              document.getElementById("subDays").textContent =
+                 "Expired";
+
+              document.getElementById("subHours").textContent =
+                  "0h left";
+              
+              return;
+          }
+
+          const days = Math.floor(
+                diff / (1000 * 60 * 60 * 24)
+          );
+
+          const hours = Math.floor(
+                (diff / (1000 * 60 * 60)) % 24
+          );
+
+          const mins = Math.floor(
+                (diff / (1000 * 60)) % 60
+          );
+
+          document.getElementById("subDays").textContent =
+              `${days} days`;
+
+          document.getElementById("subHours").textContent =
+               `${hours}h ${mins}m left`;
+        }
+
+        updateCountdown();
+
+        setInterval(updateCountdown, 60000);
   }

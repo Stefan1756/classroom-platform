@@ -63,7 +63,7 @@ body {
 }
 
 .content {
-    margin-top: 70px;
+    margin-top: 5px;
     margin-bottom: 80px;
     padding: 15px;
 }
@@ -774,4 +774,234 @@ select {
     background: #fff;
     border-radius: 16px;
     border: 1px solid #e5e7eb;
+}
+
+.wallet-entry-card {
+    position: relative;
+    overflow: hidden;
+    background: #fff;
+    border: 1px solid #ececec;
+    border-radius: 28px;
+    padding: 22px;
+    margin-top: 18px;
+    margin-bottom: 10px;
+}
+
+.wallet-glow {
+    position: absolute;
+    width: 180px;
+    height: 180px;
+    background: rgba(0,122,255,0.08);
+    border-radius: 50%;
+    top: -60px;
+    right: -60px;
+}
+
+.wallet-top {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: relative;
+    z-index: 2;
+}
+
+.wallet-icon-wrap {
+    width: 60px;
+    height: 60px;
+    border-radius: 20px;
+    background: #f4f7ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #dbe5ff;
+}
+
+.wallet-icon-wrap .material-icons {
+    font-size: 30px;
+    color: #2563eb;
+}
+
+#teacherTotalEarnings {
+    font-size: 22px;
+    letter-spacing: 1px;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+
+.wallet-top h3 {
+    font-size: 20px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.wallet-desc {
+    margin-top: 20px;
+    color: #6b7280;
+    line-height: 1.5;
+    font-size: 14px;
+    position: relative;
+    z-index: 2;
+}
+
+#walletOpenBtn,
+#openWalletPage {
+    margin-top: 22px;
+    width: 100%;
+    border: none;
+    height: 54px;
+    border-radius: 18px;
+    background: #111827;
+    color: #fff;
+    font-weight: 600;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: 0.3s ease;
+}
+
+#openWalletPage:hover {
+    transform: translateY(-2px);
+}
+
+.wallet-page {
+    padding: 18px;
+    padding-bottom: 120px;
+}
+
+.wallet-balance-card {
+    background: linear-gradient(
+        135deg,
+        #111827,
+        #1f2937
+    );
+    border-radius: 32px;
+    padding: 24px;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+}
+
+.wallet-balance-card::before{
+    content: "";
+    position: absolute;
+    width: 220px;
+    height: 220px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 50%;
+    top: -100px;
+    right: -80px;
+}
+
+.wallet-balance-top{
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    position: relative;
+    z-index: 2;
+}
+
+.wallet-balance-top p {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+.wallet-balance-top h1 {
+    font-size: 38px;
+    margin-top: 8px;
+    font-weight: 700;
+}
+
+.wallet-main-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+}
+
+.wallet-main-icon .material-icons {
+    font-size: 32px;
+}
+
+.wallet-balance-footer {
+    margin-top: 28px;
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    z-index: 2;
+}
+
+.wallet-balance-footer small {
+    opacity: 0.7;
+    font-size: 13px;
+}
+
+.wallet-balance-footer strong {
+    display: block;
+    margin-top: 6px;
+    font-size: 17px;
+}
+
+.wallet-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-top: 20px;
+}
+
+.wallet-action-btn {
+    height: 58px;
+    border: none;
+    border-radius: 22px;
+    background: #111827;
+    border: 1px solid #ececec;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.wallet-section {
+    margin-top: 28px;
+}
+
+.wallet-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+}
+
+.wallet-section-header h3 {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.wallet-earning-item {
+    background: #fff;
+    border: 1px solid #ececec;
+    border-radius: 24px;
+    padding: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.wallet-earning-item strong {
+    font-size: 15px;
+    color: #6b7280;
+    margin-top: 4px;
+}
+
+.wallet-earning-item h4 {
+    color: #16a34a;
+    font-size: 16px;
 }
