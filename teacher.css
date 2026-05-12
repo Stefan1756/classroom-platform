@@ -1005,3 +1005,42 @@ select {
     color: #16a34a;
     font-size: 16px;
 }
+
+.wallet-empty-state {
+    background: #fff;
+    border: 1px solid #ececec;
+    border-radius: 28px;
+    padding: 40px 24px;
+    text-align: center;
+}
+
+.wallet-empty-icon {
+    width: 82px;
+    height: 82px;
+    margin: auto;
+    border-radius: 28px;
+    background: #f4f7ff;
+    border: 1px solid #dbe5ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wallet-empty-icon .material-icons {
+    font-size: 42px;
+    color: #2563eb;
+}
+
+.wallet-empty-state h3 {
+    margin-top: 22px;
+    font-size: 22px;
+    color: #111827;
+    font-weight: 700;
+}
+
+.wallet-empty-state p {
+    margin-top: 12px;
+    color: #6b7280;
+    line-height: 1.7;
+    font-size: 14px;
+}

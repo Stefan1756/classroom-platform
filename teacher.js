@@ -1919,6 +1919,37 @@ async function loadWalletOverview() {
 
     container.innerHTML = "";
 
+    if (snap.empty) {
+        container.innerHTML = `
+            
+            <div class="wallet-empty-state">
+            
+                <div class="wallet-empty-icon">
+                    <span class="material-icons">
+                        payments
+                    </span>
+                </div>
+                
+                <h3>
+                    No Earnings Yet
+                </h3>
+                
+                <p>
+                    Your subscription revenue and payouts
+                    will appear here once students begin
+                    enrolling through your classes.
+                </p>
+                
+            </div>
+            
+        `;
+        document.getElementById(
+            "walletBalance"
+        ).textContent = "TZS 0";
+
+        return;
+    }
+
     snap.forEach(docSnap => {
         const earning = docSnap.data();
 
