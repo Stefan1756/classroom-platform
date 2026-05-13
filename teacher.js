@@ -153,6 +153,8 @@ function loadPage(page) {
                     Withdraw
                 
                 </button> 
+
+                
                 
                 <button class="wallet-action-btn">
                 
@@ -178,7 +180,7 @@ function loadPage(page) {
                     
                 </div>
                 
-                <div id="walletEarningsList"></div>
+                <div id="teacherEarningsList"></div>
                 
             </div>
 
@@ -1900,10 +1902,6 @@ async function loadWalletOverview() {
     const currentUser = auth.currentUser;
 
     if (!currentUser) return;
-    
-    const totalEl =
-        document.getElementById("teacherTotalEarnings");
-
 
     const q = query(
         collection(db, "teacherEarnings"),
@@ -1920,8 +1918,9 @@ async function loadWalletOverview() {
     let pending = 0;
     let withdrawn = 0;
 
-    const container = document.getElementById("walletEarningsList");
+    const container = document.getElementById("teacherEarningsList");
 
+    if (!container) return;
     container.innerHTML = "";
 
     if (snap.empty) {
@@ -2130,6 +2129,9 @@ function loadWithdrawPage() {
     </div>
     
     `;
+    document.getElementById("backWalletBtn").onclick = () => {
+        loadPage("wallet");
+    };
 
     loadWithdrawBalance();
 }
@@ -2181,15 +2183,26 @@ async function loadWithdrawBalance() {
         submitWithdrawRequest();
     };
 
-    document.getElementById("backWalletBtn").onclick = () => {
-        loadWalletOverview();
-    };
+    
 }
 
-async function submitWithdrawRequest(availableBalance) {
+async function submitWithdrawRequest() {
     const currentUser = auth.currentUser;
 
     if (!currentUser) return;
+
+    const teacherDoc = await getDoc(
+        doc(db, "users", currentUser.uid)
+    );
+
+    if (!teacherDoc.exists()) {
+        return showToast(
+            "Teacher account not found",
+            "error"
+        );
+    }
+
+    const teacher = teacherDoc.data();
 
     const name =
         document.getElementById(
@@ -2208,37 +2221,51 @@ async function submitWithdrawRequest(availableBalance) {
         ).value
     );
 
-    if (!name || !number || !amount) {
-        alert("fill all fields");
+    const availableBalance = teacher.balance || 0;
 
-        return;
+    const pendingAmount = teacher.pendingWithdraw || 0;
+
+    const fee = Math.floor(amount * 0.10);
+
+    const totalDeduction = amount + fee;
+
+    const usableBalance = availableBalance - pendingAmount;
+
+    if (!name || !number || !amount) {
+        return showToast(
+            "fill all fields",
+            "error"
+        );
+    }
+
+    if (!amount || amount <= 0) {
+        return showToast(
+            "Enter valid withdraw amount",
+            "error"
+        );
     }
 
     if (amount < 10000) {
-        alert(
-            "Minimum withdraw is TZS 10,000"
+        return showToast(
+            "Minimum withdraw is TZS 10,000",
+            "warning"
         );
-
-        return;
     }
 
-    if (availableBalance <= 0) {
-        alert(
-            "Insufficient balance"
+    if (usableBalance <= 0) {
+        return showToast(
+            "Your wallet balance is empty",
+            "error"
         );
-
-        return;
     }
 
-    if (amount > availableBalance ) {
-        alert(
-            "Withdraw exceeds available balance"
+    if (totalDeduction > usableBalance ) {
+        return showToast(
+            `Insufficient balance. You need TZS ${totalDeduction.toLocaleString()}`,
+            "error"
         );
-
-        return;
     }
 
-    const fee =  Math.floor(amount * 0.1);
 
     const receiveAmount = amount - fee;
 
@@ -2256,9 +2283,52 @@ async function submitWithdrawRequest(availableBalance) {
         }
     );
 
-    alert("Request submitted");
+    showToast("Request submitted");
 
-    loadWalletPage();
+    loadWalletOverview();
+}
+
+function showToast(message, type = "success") {
+    const old = 
+        document.querySelector(".custom-toast");
+
+    if (old) old.remove();
+
+    const toast = 
+        document.createElement("div");
+
+    toast.className = 
+        `custom-toast ${type}`;
+
+    toast.innerHTML = `
+        <span class="material-icons">
+            ${
+                type === "success"
+                ? "check_circle"
+
+                : type === "error"
+                ? "error"
+
+                : "info"
+            }
+        </span>
+        
+        <p>${message}</p>
+    `;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.classList.add("show");
+    }, 50);
+
+    setTimeout(() => {
+        toast.classList.remove("show");
+
+        setTimeout(() => {
+            toast.remove();
+        }, 300);
+    }, 3000)
 }
 
 loadPage("dashboard");
