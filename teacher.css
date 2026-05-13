@@ -1231,3 +1231,115 @@ select {
 .custom-toast.warning .material-icons{
     color: #f59e0b;
 }
+
+.history-page {
+    padding: 18px;
+    padding-bottom: 120px;
+}
+
+.wallet-header-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+}
+
+.wallet-header-card button {
+    width: 46px;
+    height: 46px;
+    border: 1px solid #ececec;
+    background: #fff;
+    color: #111827;
+    border-radius: 16px;
+}
+
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 18px;
+}
+
+.history-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 22px;
+    padding: 18px;
+}
+
+.history-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.history-top h4 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.history-bottom {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 12px;
+    color: #777;
+}
+
+.history-status {
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-size: .78rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.history-status.pending {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.history-status.paid {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.history-status.cancelled {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.history-pagination {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 25px;
+}
+
+.page-btn {
+    width: 42px;
+    height: 42px;
+    border: none;
+    border-radius: 14px;
+    background: #f3f4f6;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.page-btn.active {
+    background: #111827;
+    color: #fff;
+}
+
+.history-empty {
+    text-align: center;
+    padding: 60px 20px;
+    background: #fff;
+    border-radius: 24px;
+    border: 1px solid #e5e7eb;
+}
+
+.history-empty .material-icons {
+    font-size: 58px;
+    color: #cbd5e1;
+    margin-bottom: 12px;
+}

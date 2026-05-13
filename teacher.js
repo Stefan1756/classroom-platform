@@ -156,7 +156,7 @@ function loadPage(page) {
 
                 
                 
-                <button class="wallet-action-btn">
+                <button class="wallet-action-btn" id="openHistoryBtn">
                 
                     <span class="material-icons">
                         receipt_long
@@ -192,6 +192,9 @@ function loadPage(page) {
         loadWithdrawPage();
     }
 
+    document.getElementById("openHistoryBtn").onclick = () => {
+        loadHistoryPage();
+    }
     }
 }
 
@@ -1915,8 +1918,28 @@ async function loadWalletOverview() {
     const snap = await getDocs(q);
 
     let total = 0;
+
+    const requestsSnap = await getDocs(
+        query(
+            collection(db, "withdrawRequests"),
+            where("teacherId", "==", currentUser.uid)
+        )
+    );
+
     let pending = 0;
     let withdrawn = 0;
+
+    requestsSnap.forEach(docSnap => {
+        const item = docSnap.data();
+
+        if (item.status === "pending") {
+            pending += Number(item.amount || 0);
+        }
+
+        if (item.status === "paid") {
+            withdrawn += Number(item.amount || 0);
+        }
+    });
 
     const container = document.getElementById("teacherEarningsList");
 
@@ -2096,7 +2119,7 @@ function loadWithdrawPage() {
                 
                     <p>
                         Withdraw are manually
-                        verified by admin
+                        verified by admin. Payments are done only on Thursday
                     </P>
                 </div>
 
@@ -2329,6 +2352,196 @@ function showToast(message, type = "success") {
             toast.remove();
         }, 300);
     }, 3000)
+}
+
+let currentHistoryPage = 1;
+
+async function loadHistoryPage(page = 1) {
+    currentHistoryPage = page;
+
+    contentArea.innerHTML = `
+
+        <div class="history-page">
+        
+            <div class="wallet-header-card">
+
+            <button id="backWalletBtn">
+                <span class="material-icons">
+                    arrow_back
+                </span>
+            </button>
+            
+                <div>
+                    <p class="mini-label">
+                        Wallet Activity
+                    </p>
+                    
+                    <h2>
+                        Withdraw History
+                    </h2>
+                </div>
+                
+            </div>
+            
+            <div
+                id="historyList"
+                class="history-list"
+            ></div>
+            
+            <div
+                id="historyPagination"
+                class="history-pagination"
+            ></div>
+            
+        </div>
+    
+    `;
+    document.getElementById("backWalletBtn").onclick = () => {
+        loadPage("wallet");
+    };
+    
+    renderWithdrawHistory(page);
+}
+
+async function renderWithdrawHistory(page = 1) {
+    
+    const historyList = document.getElementById("historyList");
+
+    const pagination = document.getElementById("historyPagination");
+
+    const currentUser = auth.currentUser;
+
+    if (!currentUser) return;
+
+    const q = query(
+        collection(db, "withdrawRequests"),
+        where("teacherId", "==", currentUser.uid)
+    );
+
+    const snap = await getDocs(q);
+
+    let history = snap.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
+    }));
+
+    history.sort((a, b) => {
+
+        const aTime = a.createdAt?.seconds || 0;
+
+        const bTime = b.createdAt?.seconds || 0;
+
+        return bTime - aTime;
+    });
+
+    historyList.innerHTML = "";
+
+    if (history.length === 0) {
+
+        historyList.innerHTML = `
+              
+            <div class="history-empty">
+            
+                <span class="material-icons">swap_horiz</span>
+                
+                <h3>No Transactions Yet</h3>
+                
+                <p>
+                    Your withdraw and payout history
+                    will appear here
+                </p>
+                
+            </div>
+            
+        `;
+
+        pagination.innerHTML = "";
+
+        return;
+    }
+
+    const perPage = 5;
+
+    const start = (page - 1) * perPage;
+
+    const end = start + perPage;
+
+    const paginated = history.slice(start, end);
+
+    paginated.forEach(item => {
+
+        const amount = Number(item.amount || 0);
+
+        const status = item.status || "pending";
+
+        const fee = Number(item.fee || 0);
+
+        const card = document.createElement("div");
+
+        card.className = "history-card";
+
+        card.innerHTML = `
+        
+            <div class="history-top">
+            
+                <div>
+                
+                    <h4>TZS ${amount.toLocaleString()}</h4>
+                    
+                    <small>Fee: TZS ${fee.toLocaleString()}</small>
+                    
+                </div>
+                
+                <span class="history-status ${status}">${status}</span>
+                
+            </div>
+            
+            <div class="history-bottom">
+            
+                <small>${item.accountName || ""}</small>
+                
+                <small>${item.accountNumber || ""}</small>
+                
+            </div>
+            
+        `;
+
+        historyList.appendChild(card);
+    });
+
+    renderPagination(
+        history.length,
+        perPage,
+        page
+    );
+}
+
+function renderPagination(total, perPage, page) {
+
+    const pagination = document.getElementById("historyPagination");
+
+    const totalPages = Math.ceil(total / perPage);
+
+    pagination.innerHTML = "";
+
+    if (!totalPages <= 1) return;
+
+    for (let i = 1; i <= totalPages; i++) {
+        const btn = document.createElement("button");
+
+        btn.className =
+            i === page
+            ? "page-btn active"
+            : "page-btn";
+        
+        btn.textContent = i;
+
+        btn.onclick = () => {
+            loadHistoryPage(i);
+        };
+
+        pagination.appendChild(btn);
+    }
 }
 
 loadPage("dashboard");
