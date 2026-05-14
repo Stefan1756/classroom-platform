@@ -9,6 +9,7 @@ import {
     query,
     where,
     getDocs,
+    getDoc,
     addDoc,
     updateDoc,
     serverTimestamp,
@@ -32,25 +33,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-
-const profileBtn = document.getElementById("profileBtn");
-const bottomSheet = document.getElementById("bottomSheet");
-const logoutBtn = document.getElementById("logoutBtn");
-
-profileBtn.addEventListener("click", () => {
-    bottomSheet.classList.toggle("show");
-});
-
-window.addEventListener("click", (e) => {
-    if (!bottomSheet.contains(e.target) && e.target !== profileBtn) {
-        bottomSheet.classList.remove("show");
-    }
-});
-
-logoutBtn.addEventListener("click", () => {
-    localStorage.clear();
-    window.location.href = "index.html";
-});
 
 const navItems = document.querySelectorAll(".nav-item");
 const contentArea = document.getElementById("contentArea");
@@ -89,8 +71,8 @@ function loadPage(page) {
         loadSubscriptionsPage();
     }
 
-    if (page === "settings") {
-        loadSettings();
+    if (page === "payments") {
+        loadWithdrawPage();
     }
 }
 
@@ -101,65 +83,6 @@ navItems.forEach(item => {
 
         const page = item.getAttribute("data-page");
         loadPage(page);
-    });
-});
-
-const badge = document.getElementById("notificationBadge");
-
-const q = query(collection(db, "notifications"), where("read", "==", false));
-
-onSnapshot(q, (snapshot) => {
-    const count = snapshot.size;
-    updateBadge(count);
-});
-
-function updateBadge(count) {
-    if (count > 0) {
-        badge.style.display = "block";
-        badge.textContent = count;
-    } else {
-        badge.style.display = "none";
-    }
-}
-
-const notificationIcon = document.getElementById("notificationIcon");
-
-notificationIcon.addEventListener("click", () => {
-
-    document.querySelectorAll(".nav-item").forEach(i => i.classList.remove("active"));
-    document.querySelector('[data-page="users"]').classList.add("active");
-
-    loadPage("users");
-
-    setTimeout(() => {
-        document.querySelector('[data-filter="pending"]')?.click();
-    }, 200);
-});
-
-const panel = document.getElementById("notificationPanel");
-const list = document.getElementById("notificationList");
-const bell = document.getElementById("notificationIcon");
-
-bell.addEventListener("click", () => {
-    panel.classList.toggle("show");
-});
-
-onSnapshot(collection(db, "notifications"), (snapshot) => {
-    list.innerHTML = "";
-    snapshot.forEach(docSnap => {
-        const n = docSnap.data();
-
-        const item = document.createElement("div");
-        item.className = "notification-item";
-        item.textContent = n.message;
-
-        item.addEventListener("click", async () => {
-            await updateDoc(doc(db, "notifications", docSnap.id), {
-                read: true
-            });
-        });
-
-        list.appendChild(item);
     });
 });
 
@@ -246,6 +169,8 @@ function loadDashboard() {
 
     onSnapshot(collection(db, "notifications"), (snapshot) => {
         const list = document.getElementById("activityList");
+
+        if (!list) return;
         list.innerHTML = "";
 
         snapshot.forEach(doc => {
@@ -262,26 +187,123 @@ function loadDashboard() {
     loadTeachersForEarnings();
 }
 
-function loadSettings() {
+function loadWithdrawPage() {
     contentArea.innerHTML = `
-        <h3>Settings</h3>
-            <div class="settings-list">
+        <h3>Withdraws Verification</h3>
+        
+        <div class="card">
+            <h4>Pending Payouts</h4>
+            <div id="adminWithdrawList"></div>
+        </div>
+    `;
 
-                <div class="setting-item" id="adminProfile">
-                    <span class="material-icons">person</span>
-                    <p>Admin Profile</p>
-                </div>
+    renderWithdrawRequests();
+}
+
+async function renderWithdrawRequests() {
+    const container = document.getElementById("adminWithdrawList");
+
+    const q = query(
+        collection(db, "withdrawRequests"),
+        where("status", "==", "pending")
+    );
+
+    const snap = await getDocs(q)
+    
+    container.innerHTML = "";
+
+    snap.forEach(docSnap => {
+            const d = docSnap.data();
+
+            const card = document.createElement("div");
+
+            card.className = "withdraw-card";
+
+            card.innerHTML = `
+                <h3>${d.teacherName}</h3>
+                <p>Amount: TZS ${d.amount.toLocaleString()}</p>
+                <p>Fee: TZS ${d.fee.toLocaleString()}</p>
+                <p>Receive: TZS ${d.receiveAmount.toLocaleString()}</p>
+                <p>Account: ${d.receiverNumber}</p>
                 
-                <div class="setting-item">
-                    <span class="material-icons">settings</span>
-                    <p>System Settings</p>
+                <div class="actions">
+                    <button class="approve">Approve</button>
+                    <button class="reject">Reject</button>
                 </div>
+            `;
 
-            </div>
-        `;
-    };
+            card.querySelector(".approve").onclick = () => 
+                approveWithdraw(docSnap.id, d);
 
+            card.querySelector(".reject").onclick = () => 
+                rejectWithdraw(docSnap.id, d);
 
+            container.appendChild(card);
+        });
+    }
+
+async function approveWithdraw(requestId) {
+    try {
+
+        const requestRef = doc(
+            db, 
+            "withdrawRequests",
+            requestId
+            );
+
+        const requestSnap = await getDoc(requestRef);
+
+        if (!requestSnap.exists()) {
+            return showToast(
+                "Withdraw request not found",
+                "error"
+            );
+        }
+
+        const request = requestSnap.data();
+
+        if (request.status === "paid") {
+            return showToast(
+                "Request already approved",
+                "warning"
+            );
+        }
+
+        if (request.status === "rejected") {
+            return showToast(
+                "Rejected requests cannot be approved",
+                "error"
+            );
+        }
+
+        await updateDoc(requestRef, {
+            status: "paid",
+            paidAt: serverTimestamp(),
+        });
+
+        showToast("withdrawal approved successfully");
+
+    } catch (err) {
+        console.error(err);
+        showToast("Something went wrong while approving withdrawal", "error");
+    }
+    markAsPaid();
+}
+
+async function rejectWithdraw(id) {
+    await updateDoc(doc(db, "withdrawRequests", id), {
+        status: "rejected",
+        processedAt: serverTimestamp()
+    });
+    showToast("withdrawal declined", "error");
+}
+
+async function markAsPaid(id) {
+    await updateDoc(doc(db, "withdrawRequests", id), {
+        status: "paid",
+        processedAt: serverTimestamp()
+    });
+}
 
 function loadSubscriptionsPage() {
     contentArea.innerHTML = `
@@ -379,7 +401,8 @@ async function approveSubscription(id, sub) {
         startDate: Timestamp.fromDate(now),
         endDate: Timestamp.fromDate(expiry)
     });
-    alert("Subscription Approved");
+    
+    showToast("Subscription Approved");
 
     loadPendingSubscriptions();
 }
@@ -389,7 +412,10 @@ async function rejectSubscription(id) {
         status: "rejected"
     });
 
-    alert("Subscription Rejected");
+    showToast(
+        "Subscription Rejected",
+        "error"
+    );
 
     loadPendingSubscriptions();
 }
@@ -464,9 +490,10 @@ async function recordTeacherEarning() {
     const plan = document.getElementById("earningPlan").value;
 
     if (!teacherId || !amount) {
-        alert("Complete all fields");
-
-        return;
+        return showToast(
+            "Complete all fields",
+            "warning"
+        );
     }
 
     await addDoc(
@@ -481,8 +508,51 @@ async function recordTeacherEarning() {
         }
     );
 
-    alert("earning recorded");
+    showToast("earning recorded");
 
+}
+
+function showToast(message, type = "success") {
+    const old = 
+        document.querySelector(".custom-toast");
+
+    if (old) old.remove();
+
+    const toast = 
+        document.createElement("div");
+
+    toast.className = 
+        `custom-toast ${type}`;
+
+    toast.innerHTML = `
+        <span class="material-icons">
+            ${
+                type === "success"
+                ? "check_circle"
+
+                : type === "error"
+                ? "error"
+
+                : "info"
+            }
+        </span>
+        
+        <p>${message}</p>
+    `;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.classList.add("show");
+    }, 50);
+
+    setTimeout(() => {
+        toast.classList.remove("show");
+
+        setTimeout(() => {
+            toast.remove();
+        }, 300);
+    }, 3000)
 }
 
 loadPage("dashboard");

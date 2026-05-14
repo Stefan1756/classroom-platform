@@ -554,7 +554,7 @@ function openClassPage(classId, classData) {
         </div>
     `;
     setTimeout(() => {
-        initDashhboardInsights(teacherId);
+        loadClassInsights(classId);
     }, 0);
     initClassTabs(classId);
     loadClassInsights(classId);
@@ -799,15 +799,6 @@ function attachDeleteEvents() {
     });
 }
 
-async function requestEnrollment(classId, studentId) {
-    await addDoc(collection(db, "enrollments"), {
-        classId,
-        studentId,
-        status: "Pending",
-        createdAt: serverTimestamp()
-    });
-}
-
 function loadStudents(classId) {
     const content = document.getElementById("classContent");
 
@@ -962,6 +953,9 @@ async function createAssignment(classId) {
 
     document.getElementById("assignmentTitle").value = "";
 
+    notifyStudents(classId);
+}
+
 async function notifyStudents(classId, assignmentTitle) {
   const enrollQ = query(
     collection(db, "enrollments"),
@@ -971,7 +965,7 @@ async function notifyStudents(classId, assignmentTitle) {
 
   const enrollSnap = await getDocs(enrollQ);
 
-  enrollSnap.forEach(async (e) => {
+ for (const e of enrollSnap.docs) {
     const studentId = e.data().studentId;
 
     await addDoc(collection(db, "notifications"), {
@@ -982,10 +976,12 @@ async function notifyStudents(classId, assignmentTitle) {
       classId,
       createdAt: serverTimestamp()
     });
-  });
+  };
+
+  await notifyStudents(classId, title);
 }
-await notifyStudents(classId, title);
-}
+
+
 
 function loadAssignmentsList(classId) {
     const list = document.getElementById("assignmentList");
@@ -1107,7 +1103,10 @@ async function notifyGrade(studentId, grade, assignmentId, classId) {
     createdAt: serverTimestamp()
   });
 }
-await notifyGrade(s.studentId, grade, s.assignmentId, s.classId);
+const snap = await getDoc(doc(db, "submissions", id));
+const data = snap.data();
+
+await notifyGrade(data.studentId, grade, data.assignmentId, data.classId);
 }
 
 function loadPastPapers(classId) {
@@ -1381,7 +1380,7 @@ function renderDashboardUI(user) {
                         </div>
 
                         <div>
-                            <p id="teacherTotalEarnings">TZS 0</p>
+                            <p>Teacher Finance</p>
 
                             <h3>
                                 Manage Earnings
@@ -1499,7 +1498,7 @@ function loadDashboardStats(teacherId) {
         loadDashboardMaterials(classIds);
         initDashhboardInsights(teacherId);
         loadWeeklyChartData(classIds);
-        loadTeacherEarnings();
+
     });
 }
 
@@ -1837,7 +1836,7 @@ function updateChart(students, engagement) {
     if (!weeklyChart) return;
 
     weeklyChart.data.datasets[0].data = students;
-    weeklyChart.data.datasets[0].data = engagement;
+    weeklyChart.data.datasets[1].data = engagement;
 
     weeklyChart.update();
 }
@@ -1869,84 +1868,60 @@ async function deleteClass(classId) {
     }
 }
 
-async function loadTeacherEarnings() {
-    const currentUser = auth.currentUser;
-
-    if (!currentUser) return;
-    
-    const totalEl =
-        document.getElementById("teacherTotalEarnings");
-
-
-    const q = query(
-        collection(db, "teacherEarnings"),
-        where(
-            "teacherId",
-            "==",
-            currentUser.uid
-        )
-    );
-
-    const snap = await getDocs(q);
-
-    let total = 0;
-
-    snap.forEach(docSnap => {
-        const earning = docSnap.data();
-
-        total += earning.amount;
-
-    });
-
-    totalEl.textContent = `TZS ${total.toLocaleString()}`;
-}
-
 async function loadWalletOverview() {
     const currentUser = auth.currentUser;
-
     if (!currentUser) return;
 
-    const q = query(
-        collection(db, "teacherEarnings"),
-        where(
-            "teacherId",
-            "==",
-            currentUser.uid
-        )
+    const earningsRef = collection(db, "teacherEarnings");
+    const withdrawRef = collection(db, "withdrawRequests");
+
+    const earningsSnap = await getDocs(
+        query(earningsRef, where("teacherId", "==", currentUser.uid))
     );
 
-    const snap = await getDocs(q);
-
-    let total = 0;
-
-    const requestsSnap = await getDocs(
-        query(
-            collection(db, "withdrawRequests"),
-            where("teacherId", "==", currentUser.uid)
-        )
+    const withdrawSnap = await getDocs(
+        query(withdrawRef, where("teacherId", "==", currentUser.uid))
     );
 
+    let totalEarnings = 0;
     let pending = 0;
     let withdrawn = 0;
 
-    requestsSnap.forEach(docSnap => {
-        const item = docSnap.data();
+    earningsSnap.forEach(docSnap => {
+        const e = docSnap.data();
+        totalEarnings += Number(e.amount || 0);
+    });
 
-        if (item.status === "pending") {
-            pending += Number(item.amount || 0);
+    withdrawSnap.forEach(docSnap => {
+        const w = docSnap.data();
+
+        const amount = Number(w.amount || 0);
+
+        if (w.status === "pending") {
+            pending += amount;
         }
 
-        if (item.status === "paid") {
-            withdrawn += Number(item.amount || 0);
+        if (w.status === "paid") {
+            withdrawn += amount;
         }
     });
 
-    const container = document.getElementById("teacherEarningsList");
+    const available = totalEarnings - pending - withdrawn;
 
+    const balanceEl = document.getElementById("walletBalance");
+    const pendingEl = document.getElementById("pendingBalance");
+    const withdrawnEl = document.getElementById("withdrawnBalance");
+
+    if (balanceEl) balanceEl.textContent = `TZS ${available.toLocaleString()}`;
+    if (pendingEl) pendingEl.textContent = `TZS ${pending.toLocaleString()}`;
+    if (withdrawnEl) withdrawnEl.textContent = `TZS ${withdrawn.toLocaleString()}`;
+
+    const container = document.getElementById("teacherEarningsList");
     if (!container) return;
+
     container.innerHTML = "";
 
-    if (snap.empty) {
+    if (earningsSnap.empty) {
         container.innerHTML = `
             
             <div class="wallet-empty-state">
@@ -1970,19 +1945,11 @@ async function loadWalletOverview() {
             </div>
             
         `;
-        document.getElementById(
-            "walletBalance"
-        ).textContent = "TZS 0";
-
         return;
     }
 
-    snap.forEach(docSnap => {
-        const earning = docSnap.data();
-
-        total += earning.amount;
-        pending += earning.pendingWithdrawal || 0;
-        withdrawn += earning.withdrawnAmount || 0;
+    earningsSnap.forEach(docSnap => {
+        const e = docSnap.data();
 
         const item = document.createElement("div");
 
@@ -1992,34 +1959,21 @@ async function loadWalletOverview() {
             <div>
             
                 <strong>
-                    ${earning.studentName}
+                    ${e.studentName}
                 </strong>
                 
                 <p>
-                    ${earning.subscriptionPlan}
+                    ${e.subscriptionPlan}
                 </p>
                 
             </div>
             
             <h4>
-                +TZS ${earning.amount}
+                +TZS ${Number(e.amount || 0).toLocaleString()}
             </h4>
         `;
         container.appendChild(item);
-
     });
-
-    const available = total - pending - withdrawn;
-
-    document.getElementById("walletBalance").textContent = `TZS ${available.toLocaleString()}`;
-
-    document.getElementById(
-        "pendingBalance"
-    ).textContent = `TZS ${pending.toLocaleString()}`;
-
-    document.getElementById(
-        "withdrawnBalance"
-    ).textContent = `TZS ${withdrawn.toLocaleString()}`;
 }
 
 function loadWithdrawPage() {
@@ -2164,29 +2118,51 @@ async function loadWithdrawBalance() {
 
     if (!currentUser) return;
 
-    const q = query(
+    const earningsSnap = await getDocs(
+        query(
         collection(db, "teacherEarnings"),
         where("teacherId", "==", currentUser.uid)
+        )
     );
 
-    const snap = await getDocs(q);
+    let totalEarnings = 0;
 
-    let total = 0;
-    let pending = 0;
-    let withdrawn = 0;
-
-    snap.forEach(docSnap => {
-        const earning = docSnap.data();
-
-        total += earning.amount || 0;
-        pending += earning.pendingWithdrawal || 0;
-        withdrawn += earning.withdrawnAmount || 0;
+    earningsSnap.forEach(docSnap => {
+        totalEarnings += Number(
+            docSnap.data().amount || 0
+        );
     });
 
-    const available = total - pending - withdrawn;
+    const requestsSnap = await getDocs(
+        query(
+            collection(db, "withdrawRequests"),
+            where("teacherId", "==", currentUser.uid)
+        )
+    );
+
+    let pendingAmount = 0;
+    let withdrawnAmount = 0;
+
+    requestsSnap.forEach(docSnap => {
+        const data = docSnap.data();
+
+        if (data.status === "pending") {
+            pendingAmount += Number(
+                data.amount || 0
+            );
+        }
+
+        if (data.status === "paid") {
+            withdrawnAmount += Number(
+                data.amount || 0
+            );
+        }
+    });
+
+    const availableBalance = totalEarnings - pendingAmount- withdrawnAmount;
 
     document.getElementById("withdrawAvailableBalance").textContent =
-        `TZS ${available.toLocaleString()}`;
+        `TZS ${availableBalance.toLocaleString()}`;
 
     const amountInput = document.getElementById("withdrawAmount");
 
@@ -2204,28 +2180,15 @@ async function loadWithdrawBalance() {
 
     document.getElementById("submitWithdrawBtn").onclick = () => {
         submitWithdrawRequest();
-    };
 
-    
+    document.getElementById("withdrawAmount").value = "";
+    };
 }
 
 async function submitWithdrawRequest() {
     const currentUser = auth.currentUser;
 
     if (!currentUser) return;
-
-    const teacherDoc = await getDoc(
-        doc(db, "users", currentUser.uid)
-    );
-
-    if (!teacherDoc.exists()) {
-        return showToast(
-            "Teacher account not found",
-            "error"
-        );
-    }
-
-    const teacher = teacherDoc.data();
 
     const name =
         document.getElementById(
@@ -2244,15 +2207,46 @@ async function submitWithdrawRequest() {
         ).value
     );
 
-    const availableBalance = teacher.balance || 0;
-
-    const pendingAmount = teacher.pendingWithdraw || 0;
-
     const fee = Math.floor(amount * 0.10);
 
-    const totalDeduction = amount + fee;
+    const receiveAmount = amount - fee;
 
-    const usableBalance = availableBalance - pendingAmount;
+    const earningsSnap = await getDocs(
+        query(
+            collection(db, "teacherEarnings"),
+            where("teacherId", "==", currentUser.uid)
+        )
+    );
+
+    let totalEarnings = 0;
+
+    earningsSnap.forEach(docSnap => {
+        totalEarnings += Number(docSnap.data().amount || 0);
+    });
+
+    const requestsSnap = await getDocs(
+        query(
+            collection(db, "withdrawRequests"),
+            where("teacherId", "==", currentUser.uid)
+        )
+    );
+
+    let pendingAmount = 0;
+    let withdrawAmount = 0;
+
+    requestsSnap.forEach(docSnap => {
+        const data = docSnap.data();
+
+        if (data.status === "pending") {
+            pendingAmount += Number(data.amount || 0);
+        }
+
+        if (data.status === "paid") {
+            withdrawAmount += Number(data.amount || 0);
+        }
+    });
+
+    const usableBalance = totalEarnings - pendingAmount - withdrawAmount;
 
     if (!name || !number || !amount) {
         return showToast(
@@ -2275,22 +2269,12 @@ async function submitWithdrawRequest() {
         );
     }
 
-    if (usableBalance <= 0) {
+    if (amount > usableBalance ) {
         return showToast(
-            "Your wallet balance is empty",
+            `Insufficient balance. Available balance is TZS ${usableBalance.toLocaleString()}`,
             "error"
         );
     }
-
-    if (totalDeduction > usableBalance ) {
-        return showToast(
-            `Insufficient balance. You need TZS ${totalDeduction.toLocaleString()}`,
-            "error"
-        );
-    }
-
-
-    const receiveAmount = amount - fee;
 
     await addDoc(
         collection(db, "withdrawRequests"),
@@ -2305,6 +2289,8 @@ async function submitWithdrawRequest() {
             createdAt: serverTimestamp()
         }
     );
+
+    
 
     showToast("Request submitted");
 
@@ -2498,9 +2484,9 @@ async function renderWithdrawHistory(page = 1) {
             
             <div class="history-bottom">
             
-                <small>${item.accountName || ""}</small>
+                <small>${item.teacherName || ""}</small>
                 
-                <small>${item.accountNumber || ""}</small>
+                <small>${item.receiverNumber || ""}</small>
                 
             </div>
             

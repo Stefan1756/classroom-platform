@@ -895,6 +895,17 @@ select {
     right: -80px;
 }
 
+.wallet-balance-card::after{
+    content: "";
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 50%;
+    bottom: -100px;
+    left: -80px;
+}
+
 .wallet-balance-top{
     display: flex;
     align-items: flex-start;
@@ -1179,7 +1190,7 @@ select {
     min-width: 260px;
     max-width: 90%;
     background: #fff;
-    border-radius: 18px;
+    border-radius: 10px;
     padding: 14px 18px;
     display: flex;
     align-items: center;
@@ -1205,15 +1216,15 @@ select {
 }
 
 .custom-toast.success{
-    border-left: 5px solid #22c55e;
+    border: 1px solid #22c55e;
 }
 
 .custom-toast.error{
-    border-left: 5px solid #ef4444;
+    border: 1px solid #ef4444;
 }
 
 .custom-toast.warning{
-    border-left: 5px solid #f59e0b;
+    border: 1px solid #f59e0b;
 }
 
 .custom-toast .material-icons{
@@ -1303,10 +1314,11 @@ select {
     color: #166534;
 }
 
-.history-status.cancelled {
+.history-status.rejected {
     background: #fee2e2;
     color: #991b1b;
 }
+
 
 .history-pagination {
     display: flex;
