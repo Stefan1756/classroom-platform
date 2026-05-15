@@ -73,20 +73,41 @@ function loadPage(page) {
                 <input type="text" id="className" placeholder="Class name" />
                 <input type="text" id="classDesc" placeholder="Description" />
 
+                <select id="classCategory">
+                    <option value="">Select category</option>
+                    <option value="Science">Science</option>
+                    <option value="Arts">Arts</option>
+                    <option value="Business">Business</option>
+                </select>
+
+                <div class="class-category-wrap">
+
+                    <label>Subject</label>
+
+                    <select id="classSubject">
+                        <option value="">Select subject</option>
+                    </select>
+
+                </div>
+
                 <button id="createClassBtn" class="btn primary">
                     Create Class
                 </button>
+
             </div>
 
             <div>
                 <h4>My Classes</h4>
-                <p>List of all created classes, enter and delete classes whenever you like.</p>
+                <p>
+                    Organize all your learning classes by category and subject.
+                </p>
             </div>
 
             <div id="classList" class="class-list"></div>
         </div>
         `;
         initClassesUI();
+        initCategorySubjects();
         initClasses();
     }
 
@@ -238,55 +259,344 @@ async function initProfileData() {
 function renderProfileUI(user) {
     const container = document.getElementById("contentArea");
 
+    const hasProfile = 
+        user?.subject ||
+        user?.experience ||
+        user?.price ||
+        user?.number ||
+        user?.about;
+
     container.innerHTML = `
-        <div class="profile-page">
+
+        <div class="teacher-profile-page">
+
+            <div class="teacher-profile-topbar">
+                  
+                <button id="profileBackBtn" class="profile-back-btn">
+                    <span class="material-icons">arrow_back_ios</span>
+                </button>
+
+                <button id="editProfileBtn" class="profile-edit-btn">
+                    <span class="material-icons">edit</span>
+                    Edit
+                </button>
+
+            </div>
+
+            <div class="teacher-profile-header">
+
+                <div class="teacher-avatar-wrap">
+
+                    <img
+                        src="${user?.photoURL || 'default.jpeg'}"
+                        class="teacher-profile-avatar
+                        id="teacherProfileAvatar"
+                    />
+
+                    <label for="profileImageInput" class="change-avatar-btn">
+                        <span class="material-icons">photo_camera</span>
+                    </label>
+
+                    <input
+                        type="file"
+                        id="profileImageInput"
+                        accept="image/*"
+                        hidden
+                    />
+
+                </div>
+
+                    <h2 id="profileTeacherName">
+                        ${user?.username || "Teacher"}
+                    </h2>
+
+                    <div class="teacher-badge">
+                        <span class="material-icons">verified</span>
+                        Certified Teacher
+                    </div>
+                
+                </div>
+
+               <div class="teacher-profile-tabs">
+
+                    <div class="teacher-info-card">
+                        <span class="material-icons">phone</span>
+                        <small>Phone</small>
+
+                        <strong id="profileNumber">
+                            ${user?.number || "255"}
+                        </strong>
+                    </div>
+
+                    <div class="teacher-info-card">
+                        <span class="material-icons">menu_book</span>
+                        <small>Subject</small>
+
+                        <strong id="profileSubject">
+                            ${user?.subject || "Not set"}
+                        </strong>
+                    </div>
+
+                    <div class="teacher-info-card">
+                        <span class="material-icons">work</span>
+                        <small>Experience</small>
+
+                        <strong id="profileExperience">
+                            ${user?.experience || "0"} Years
+                        </strong>
+                    </div>
+
+                    <div class="teacher-info-card">
+                        <span class="material-icons">payments</span>
+                        <small>Price Per Month</small>
+
+                        <strong id="profilePrice">
+                            ${Number(user?.price || 0).toLocaleString()}
+                        </strong>
+                    </div>
+
+                </div>
+            
+                <div class="teacher-about-card">
+
+                    <div class="about-title">
+                        <span class="material-icons">info</span>
+                        <h3>About</h3>
+                    </div>
+
+                    <p id="profileAboutText">
+                        ${
+                            user?.about ||
+                            "Tell students about yourself, your teaching experience, teaching style and expertise."
+                        }
+                    </p>
+
+                </div>
+            
+            </div>
+
+        `;
+
+        document.getElementById("profileBackBtn").onclick = () => {
+        loadPage("dashboard");
+    };
+
+    document.getElementById("editProfileBtn").onclick = () => {
+        openEditProfileModal(user);
+    };
+
+    initProfileImageUpload();
+
+    if (!hasProfile) {
+        setTimeout(() => {
+            openEditProfile(user);
+        }, 400);
+    }
+}
+
+function initProfileImageUpload() {
+    const imageInput = document.getElementById("profileImageInput");
+
+    imageInput.addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if(!file) return;
+        const currentUser = auth.currentUser;
+        if(!currentUser) return;
+
+        try {
+            showToast(
+                "Uploading picture...",
+                "success"
+            );
+
+        const storageRef = ref(
+            storage,
+            `avatars/${currentUser.uid}_${Date.now}`
+        );
+
+        await uploadBytes(storageRef, file);
+
+        const downloadURL = await getDownloadURL(storageRef);
+
+        await updateDoc(
+            doc(db, "users", currentUser.uid),
+            {
+                photoURL: downloadURL
+            }
+        );
+
+        document.getElementById("teacherProfileAvatar").src = downloadURL;
+
+        showToast("Profile updated");
+
+        } catch (err) {
+            console.error(err);
+            showToast("Profile picture uploaded");
+        }
+    });
+}
+
+function openEditProfileModal(user) {
+    
+    const modal = document.createElement("div");
+
+    modal.className = "profile-edit-modal";
+
+    modal.innerHTML = `
         
-            <div class="profile-header-modern">
-                <h2>My Profile</h2>
-                <span class="material-icons">edit</span>
+        <div class="profile-edit-content">
+        
+            <div class="profile-edit-header">
+             
+                <h2>Edit Profile</h2>
+
+                <button id="closeEditModal">
+                    <span class="material-icons">close</span>
+                </button>
+
             </div>
             
-            <div class="profile-card-modern">
-                <img src="${user?.photoURL || "default.jpeg"}" class="avatar"/>
+            <div class="profile-edit-form">
+
+                <div class="input-group">
+
+                    <label>Teacher Name</label>
+
+                    <input
+                        type="text"
+                        id="editTeacherName"
+                        value="${user?.username || ""}"
+                        placeholder="Sir..."
+                    />
+                </div>
+
+                <div class="input-group">
+                    <label>Subject</label>
                 
-                <div>
-                    <h3>${user?.username || "Teacher"}</h3>
-                    <p>${user?.email || ""}</p>
+                    <input
+                        type="text"
+                        id="editTeacherSubject"
+                        value="${user?.subject || ""}"
+                        placeholder="Example: Mathematics"
+                    />
                 </div>
-            </div>
             
-            <div class="profile-stats">
-                <div class="stat-box">
-                    <p>Classes</p>
-                    <strong id="pClasses">--</strong>
-                </div>
+                <div class="input-group">
+            
+                    <label>Experience</label>
                 
-                <div class="stat-box">
-                    <p>Students</p>
-                    <strong id="pStudents">--</strong>
+                    <input
+                        type="number"
+                        id="editTeacherExperience"
+                        value="${user?.experience || ""}"
+                        placeholder="Example: 5"
+                   />
                 </div>
+            
+                <div class="input-group">
+            
+                    <label>Price Per Month</label>
                 
-                <div class="stat-box">
-                    <p>Materials</p>
-                    <strong id="pMaterials">--</strong>
+                    <input
+                        type="number"
+                        id="editTeacherPrice"
+                        value="${user?.price || ""}"
+                        placeholder="Example: 15000"
+                    />
                 </div>
-            </div>
+
+                <div class="input-group">
             
-            <div class="profile-actions">
-                <div class="action-card">Manage Classes</div>
-                <div class="action-card">Upload Materials</div>
-                <div class="action-card">View Insights</div>
-            </div>
+                    <label>Phone</label>
+                
+                        <input
+                            type="text"
+                            id="editTeacherNumber"
+                            value="${user?.number || ""}"
+                            placeholder="Example: 0712345678"
+                        />
+                    </div>
             
-            <div class="card">
-                <h4>About</h4>
-                <p id="profileAbout">
-                    ${user?.about || "This is your profile. You can update it later."}
-                </p>
+                <div class="input-group">
+            
+                    <label>About</label>
+                
+                    <textarea
+                        id="editTeacherAbout"
+                        placeholder="Tell students about yourself..."
+                    >${user?.about || ""}</textarea>
+                </div>
+            
+                <button id="saveProfileBtn" class="save-profile-btn">
+                    Save Profile
+                </button>
+
             </div>
             
         </div>
+        
     `;
+
+    document.body.appendChild(modal);
+
+    document.getElementById("closeEditModal").onclick = () => {
+        modal.remove();
+    };
+
+    document.getElementById("saveProfileBtn").onclick = async () => {
+        const currentUser = auth.currentUser;
+
+        const username = document.getElementById("editTeacherName").value.trim();
+        const subject = document.getElementById("editTeacherSubject").value.trim();
+        const experience = document.getElementById("editTeacherExperience").value.trim();
+        const price = document.getElementById("editTeacherPrice").value.trim();
+        const number = document.getElementById("editTeacherNumber").value.trim();
+        const about = document.getElementById("editTeacherAbout").value.trim();
+
+        if (
+            !username ||
+            !subject ||
+            !experience ||
+            !price ||
+            !number ||
+            !about
+        ) {
+            return showToast(
+                "Fill all profile fields",
+                "error"
+            );
+        }
+
+        try {
+              
+            await updateDoc(
+                doc(db, "users", currentUser.uid),
+                {
+                    username,
+                    subject,
+                    experience,
+                    price: Number(price),
+                    number,
+                    about
+                }
+           );
+
+           showToast(
+                "Profile updated successfully"
+            );
+
+            modal.remove();
+
+            initProfileData();
+
+        } catch (err) {
+            console.error(err);
+            showToast(
+                "Failed to update profile",
+                "error"
+            );
+        }
+    };
 }
 
 function loadTeacherStats(teacherId) {
@@ -389,28 +699,90 @@ function initClasses() {
     loadClasses();
 }
 
+function initCategorySubjects() {
+
+    const categorySelect = document.getElementById("classCategory");
+
+    const subjectSelect = document.getElementById("classSubject");
+
+    const categories = {
+
+        Science: [
+            "Computer",
+            "Geography",
+            "Chemistry",
+            "Biology",
+            "Physics",
+            "Mathematics"
+        ],
+
+        Arts: [
+            "History",
+            "Kiswahili",
+            "English Language",
+            "Literature",
+            "Civics"
+        ],
+
+        Business: [
+            "Economics",
+            "Commerce",
+            "Book Keeping"
+        ]
+    };
+
+    categorySelect.addEventListener("change", () => {
+
+        const selected = categorySelect.value;
+
+        subjectSelect.innerHTML = `
+            <option value="">Select subject</option>
+        `;
+
+        if (!selected) return;
+
+        categories[selected].forEach(subject => {
+            const option = document.createElement("option");
+
+            option.value = subject;
+
+            option.textContent = subject;
+
+            subjectSelect.appendChild(option);
+        });
+    });
+}
+
 async function createClass() {
     const name = document.getElementById("className").value;
     const desc = document.getElementById("classDesc").value;
+    const category = document.getElementById("classCategory").value;
+    const subject = document.getElementById("classSubject").value;
 
-    if (!name) return alert("Class name required");
+    if (!name || !desc || !category || !subject) return showToast("Fill all fields", "warning");
 
     const user = auth.currentUser;
 
     await addDoc(collection(db, "classes"), {
         name,
         description: desc,
+        category,
+        subject,
         teacherId: user.uid,
         createdAt: serverTimestamp()
     });
 
     document.getElementById("className").value = "";
     document.getElementById("classDesc").value = "";
+    document.getElementById("classCategory").value = "";
+    document.getElementById("classSubject").innerHTML = `
+        <option value="">Select subject</option>
+    `;
 
     document.getElementById("createClassForm").classList.add("hidden");
-}
 
-let unsubscribeClasses = null;
+    showToast("Class created!");
+}
 
 function loadClasses() {
     const list = document.getElementById("classList");
@@ -445,6 +817,18 @@ function loadClasses() {
             card.className = "class-card-modern";
 
             card.innerHTML = `
+                <div class="class-card-top">
+
+                    <div class="class-category-badge ${c.category}">
+                        ${c.category}
+                    </div>
+
+                    <div class="class-subject-chip">
+                        ${c.subject}
+                    </div>
+
+                </div>
+
                 <div class="class-info">
                     <h3>${c.name}</h3>
                     <p>${c.description || "No description"}</p>
@@ -515,6 +899,19 @@ function openClassPage(classId, classData) {
                     <span class="material-icons back-btn" id="backBtn">arrow_back</span>
                     <div>
                         <h2>${classData.name}</h2>
+
+                        <div class="open-class-tags">
+
+                            <span class="open-category-tag ${classData.category}">
+                                ${classData.category}
+                            </span> 
+                            
+                            <span class="open-subject-tag">
+                                ${classData.subject}
+                            </span>
+                            
+                        </div>
+
                         <p>${classData.description || "No description"}</p>
                     </div>
                 </div>
@@ -701,11 +1098,11 @@ async function addMaterial(classId) {
     const title = document.getElementById("materialTitle").value;
     const type = document.getElementById("materialType").value;
 
-    if (!title) return alert("Title required");
+    if (!title) return showToast("Title required", "warning");
 
     if (type === "link") {
         const link = document.getElementById("materialLink").value;
-        if (!link) return alert("Enter link");
+        if (!link) return showToast("Enter link", "warning");
 
         await addDoc(collection(db, "materials"), {
         classId,
@@ -718,10 +1115,10 @@ async function addMaterial(classId) {
 
    if (type === "file") {
     const file = document.getElementById("materialFile").files[0];
-    if (!file) return alert("Select file");
+    if (!file) return showToast("Select file", "warning");
 
     if (file.type.startsWith("video") && file.size > 50 * 1024 * 1024) {
-        return alert("Video too large (max ~15mins)");
+        return showToast("Video too large (max ~15mins)", "error");
     }
 
     const fileRef = ref(storage, `materials/${Date.now()}_${file.name}`);
@@ -941,7 +1338,7 @@ async function createAssignment(classId) {
     const desc = document.getElementById("assignmentDesc").value;
     const due = document.getElementById("assignmentDue").value; 
 
-    if (!title) return alert("Title required");
+    if (!title) return showToast("Title required", "warning");
 
     await addDoc(collection(db, "assignments"), {
         classId,
@@ -1090,7 +1487,7 @@ async function gradeSubmission(id, grade) {
         grade: Number(grade)
     });
 
-    alert("Graded!");
+    showToast("Graded!");
 
 async function notifyGrade(studentId, grade, assignmentId, classId) {
   await addDoc(collection(db, "notifications"), {
@@ -1133,7 +1530,7 @@ async function uploadPaper(classId) {
     const title = document.getElementById("paperTitle").value;
     const file = document.getElementById("paperFile").files[0];
 
-    if (!title || !file) return alert("Fill all fields");
+    if (!title || !file) return showToast("Fill all fields", "error");
 
     const fileRef = ref(storage, `papers/${Date.now()}_${file.name}`);
 
@@ -1238,7 +1635,7 @@ async function uploadExam(classId) {
     const title = document.getElementById("examTitle").value;
     const file = document.getElementById("examFile").files[0];
 
-    if (!title || !file) return alert("Fill all fields");
+    if (!title || !file) return showToast("Fill all fields", "error");
 
     const fileRef = ref(storage, `exams/${Date.now()}_${file.name}`);
 
