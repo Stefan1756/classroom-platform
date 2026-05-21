@@ -13,12 +13,45 @@ export function showSkeleton(containerId) {
   `);
 }
 
-export function toast(message) {
-  const t = document.createElement("div");
-  t.className = "toast";
-  t.innerText = message;
+ export function showToast(message, type = "success") {
+    const old = 
+        document.querySelector(".custom-toast");
 
-  document.body.appendChild(t);
+    if (old) old.remove();
 
-  setTimeout(() => t.remove(), 2500);
+    const toast = 
+        document.createElement("div");
+
+    toast.className = 
+        `custom-toast ${type}`;
+
+    toast.innerHTML = `
+        <span class="material-icons">
+            ${
+                type === "success"
+                ? "check_circle"
+
+                : type === "error"
+                ? "error"
+
+                : "info"
+            }
+        </span>
+        
+        <p>${message}</p>
+    `;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.classList.add("show");
+    }, 50);
+
+    setTimeout(() => {
+        toast.classList.remove("show");
+
+        setTimeout(() => {
+            toast.remove();
+        }, 300);
+    }, 3000)
 }

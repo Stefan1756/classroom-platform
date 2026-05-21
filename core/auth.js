@@ -58,6 +58,17 @@ export function getUser() {
   return currentUser;
 }
 
+export function getStudentIdentity() {
+  const user = getUser();
+  const data = getUserData();
+
+  return {
+    username: data?.username || "Student",
+    email: user?.email || "",
+    avatar: data?.avatar || "default.jpeg"
+  };
+}
+
 export function getUserData() {
   return currentUserData;
 }

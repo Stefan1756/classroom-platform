@@ -23,7 +23,8 @@ import {
     updateDoc,
     doc} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-import { navigate } from "./core/router.js";
+import { goBack, navigate } from "./core/router.js";
+import { getUser, getUserData } from "./core/auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDq_02L2kHPr5jgjblWk_Vrs_JcRrjSBdA",
@@ -81,6 +82,20 @@ function loadPage(page) {
                 </select>
 
                 <div class="class-category-wrap">
+
+                    <label>Price</label>
+
+                    <div class="price-input-wrap">
+
+                        <span>TZS</span>
+
+                        <input
+                            type="number"
+                            id="classPrice"
+                            placeholder="Example: Tsh 15000"
+                        />
+
+                    </div>
 
                     <label>Subject</label>
 
@@ -758,8 +773,9 @@ async function createClass() {
     const desc = document.getElementById("classDesc").value;
     const category = document.getElementById("classCategory").value;
     const subject = document.getElementById("classSubject").value;
+    const price = Number(document.getElementById("classPrice").value);
 
-    if (!name || !desc || !category || !subject) return showToast("Fill all fields", "warning");
+    if (!name || !desc || !category || !subject || !price) return showToast("Fill all fields", "warning");
 
     const user = auth.currentUser;
 
@@ -768,6 +784,7 @@ async function createClass() {
         description: desc,
         category,
         subject,
+        price,
         teacherId: user.uid,
         createdAt: serverTimestamp()
     });
@@ -775,6 +792,7 @@ async function createClass() {
     document.getElementById("className").value = "";
     document.getElementById("classDesc").value = "";
     document.getElementById("classCategory").value = "";
+    document.getElementById("classPrice").value = "";
     document.getElementById("classSubject").innerHTML = `
         <option value="">Select subject</option>
     `;
@@ -823,14 +841,19 @@ function loadClasses() {
                         ${c.category}
                     </div>
 
-                    <div class="class-subject-chip">
-                        ${c.subject}
-                    </div>
+                    <div class="class-price-badge">
+                        TZS ${Number(c.price || 0).toLocaleString()}
+                    </div>    
 
                 </div>
 
                 <div class="class-info">
                     <h3>${c.name}</h3>
+
+                    <div class="class-subject-chip">
+                        ${c.subject}
+                    </div>
+                                    
                     <p>${c.description || "No description"}</p>
                 </div>
 
@@ -912,6 +935,14 @@ function openClassPage(classId, classData) {
                             
                         </div>
 
+                        
+                        <div class="class-price-display">
+
+                            <span class="material-icons">payments</span>
+                                TZS ${Number(classData.price || 0).toLocaleString()}
+                          
+                        </div>
+                                
                         <p>${classData.description || "No description"}</p>
                     </div>
                 </div>
@@ -941,7 +972,7 @@ function openClassPage(classId, classData) {
             <div class="class-tabs-modern">
                 <button class="tab active" data-tab="materials">Materials</button>
                 <button class="tab" data-tab="students">Students</button>
-                <button class="tab" data-tab="assignments">Assignments</button>
+                <button class="tab" data-tab="submissions">Submissions</button>
                 <button class="tab" data-tab="examinations">Exams</button>
                 <button class="tab" data-tab="pastpapers">Past Papers</button>
             </div>
@@ -970,9 +1001,9 @@ function initClassTabs(classId) {
 
             if (selected === "materials") loadMaterials(classId);
             if (selected === "students") loadStudents(classId);
-            if (selected === "assignments") loadAssignments(classId);
-            if (selected === "examinations") loadExaminations(classId);
-            if (selected === "pastpapers") loadPastPapers(classId);
+            if (selected === "submissions") openExamSubmissions(classId);
+            if (selected === "examinations") openExamUpload(classId);
+            if (selected === "pastpapers") openPastPaperUpload(classId);
         });
     });
 
@@ -1312,350 +1343,296 @@ function loadApproveStudents(classId) {
     });
 }
 
-function loadAssignments(classId) {
-    const content = document.getElementById("classContent");
-
-    content.innerHTML = `
-        <div class="card">
-            <input class="text" id="assignmentTitle" placeholder="Assignment title" />
-            <textarea id="assignmentDesc" placeholder="Description"></textarea>
-            <input class="date" id="assignmentDue" placeholder="Deadline" />
-            <button id="createAssignmentBtn">Create Assignment</button>
-        </div>
-        
-        <div id="assignmentList"></div>
-    `;
-
-    document.getElementById("createAssignmentBtn").onclick = () => {
-        createAssignment(classId);
+function openExamSubmissions(examId, examData) {
+    const container = document.getElementById("classContent");
+        container.innerHTML = `
+            <div class="teacher-submissions-page">
+                <div class="submissions-header">
+                    <div>
+                        <h2>${examData?.title || "Exam"}</h2>
+                        <p>Student who Submitted this exam</p>
+                    </div>
+                </div>
+            
+                <div id="submissionsList" class="submissions-list">
+                    <div class="loading-card">
+                        Loading submissions...
+                    </div>
+                </div>
+            </div>
+        `;
+        loadExamSubmissions(examId);    
     };
 
-    loadAssignmentsList(classId);
-}
+async function loadExamSubmissions(examId) {
 
-async function createAssignment(classId) {
-    const title = document.getElementById("assignmentTitle").value;
-    const desc = document.getElementById("assignmentDesc").value;
-    const due = document.getElementById("assignmentDue").value; 
+    const list = document.getElementById("submissionsList");
 
-    if (!title) return showToast("Title required", "warning");
-
-    await addDoc(collection(db, "assignments"), {
-        classId,
-        title,
-        description: desc,
-        dueDate: due,
-        createdAt: serverTimestamp()
-    });
-
-    document.getElementById("assignmentTitle").value = "";
-
-    notifyStudents(classId);
-}
-
-async function notifyStudents(classId, assignmentTitle) {
-  const enrollQ = query(
-    collection(db, "enrollments"),
-    where("classId", "==", classId),
-    where("status", "==", "approved")
-  );
-
-  const enrollSnap = await getDocs(enrollQ);
-
- for (const e of enrollSnap.docs) {
-    const studentId = e.data().studentId;
-
-    await addDoc(collection(db, "notifications"), {
-      userId: studentId,
-      type: "assignment",
-      message: `New assignment: ${assignmentTitle}`,
-      read: false,
-      classId,
-      createdAt: serverTimestamp()
-    });
-  };
-
-  await notifyStudents(classId, title);
-}
-
-
-
-function loadAssignmentsList(classId) {
-    const list = document.getElementById("assignmentList");
+    console.log("Loading submissions for exam:", examId);
 
     const q = query(
-        collection(db, "assignments"),
-        where("classId", "==", classId)
+        collection(db, "examSubmissions"),
+        where("examId", "==", examId)
     );
 
-    onSnapshot(q, (snapshot) => {
+    onSnapshot(q, async (snapshot) => {
+
+        console.log("Found submissions:", snapshot.size);
+
         list.innerHTML = "";
 
-        snapshot.forEach(doc => {
-            const a = doc.data();
-
-            const card = document.createElement("div");
-            card.className = "card";
-
-            card.innerHTML = `
-                <strong>${a.title}</strong>
-                <p>${a.description || ""}</p>
-                <small>Due: ${a.dueDate || "N/A"}</small>
-
-                <div class="assignment-actions">
-                    <button class="btn secondary edit-btn" data-id="${doc.id}">Edit</button>
-                    <button class="btn danger delete-btn" data-id="${doc.id}">Delete</button>
-                    <button class="btn primary view-btn" data-id="${doc.id}">View Submissions</button>
+        if (snapshot.empty) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    <span class="material-icons">inbox</span>
+                    <p>No submissions yet</p>
                 </div>
             `;
-
-            card.querySelector("button").onclick = () => {
-                openSubmissions(doc.id);
-            };
-
-            list.appendChild(card);
-        });
-    });
-}
-
-document.addEventListener("click", async (e) => {
-    if (e.target.classList.contains("edit-btn")) {
-        const id = e.target.dataset.id;
-
-        const newTitle = prompt("new title");
-        if (!newTitle) return;
-
-        await updateDoc(doc(db, "assignments", id), {
-            title: newTitle
-        });
-    }
-
-    if (e.target.classList.contains("delete-btn")) {
-        const id = e.target.dataset.id;
-
-        if (!confirm("Delete assignment?")) return;
-
-        await deleteDoc(doc(db, "assignments", id));
-    }
-
-    if (e.target.classList.contains("view-btn")) {
-        const id = e.target.dataset.id;
-
-        openSubmissions(id);
-    }
-});
-
-function openSubmissions(assignmentId) {
-    const content = document.getElementById("classContent");
-
-    content.innerHTML = `<h3>Submissions</h3><div id="subList"></div>`;
-
-    const list = document.getElementById("subList");
-
-    const q = query(
-        collection(db, "submissions"),
-        where("assignmentId", "==", assignmentId)
-    );
-
-    onSnapshot(q, (snapshot) => {
-        list.innerHTML = "";
+            return;
+        }
 
         for (const docSnap of snapshot.docs) {
-            const s = docSnap.data();
+
+            const sub = docSnap.data();
+            const submissionId = docSnap.id;
+
+            const studentDoc = await getDoc(
+                doc(db, "users", sub.studentId)
+            );
+
+            const student = studentDoc.exists()
+                ? studentDoc.data()
+                : {};
 
             const card = document.createElement("div");
-            card.className = "card";
+            card.className = "submission-card";
 
             card.innerHTML = `
-                <a href="${s.fileUrl}" target="_blank">View Submissions</a>
-                <input type="number" placeholder="Grade" id="g-${docSnap.id}" />
-                <button data-id="${docSnap.id}">Save</button>
-            `;
+                <div class="submission-top">
 
-            card.querySelector("button").onclick = () => {
-                const grade = document.getElementById(`g-${docSnap.id}`).value;
-                gradeSubmission(docSnap.id, grade);
-            };
+                    <img src="${student.avatar || "default.jpeg"}"
+                         class="submission-avatar" />
 
-            list.appendChild(card);
-        }
-    });
-}
+                    <div>
+                        <h3>${student.username || "Student"}</h3>
 
-async function gradeSubmission(id, grade) {
-    await updateDoc(doc(db, "submissions", id), {
-        grade: Number(grade)
-    });
-
-    showToast("Graded!");
-
-async function notifyGrade(studentId, grade, assignmentId, classId) {
-  await addDoc(collection(db, "notifications"), {
-    userId: studentId,
-    message: `Your assignment was graded ${grade}%`,
-    type: "grade",
-    assignmentId,
-    classId,
-    read: false,
-    createdAt: serverTimestamp()
-  });
-}
-const snap = await getDoc(doc(db, "submissions", id));
-const data = snap.data();
-
-await notifyGrade(data.studentId, grade, data.assignmentId, data.classId);
-}
-
-function loadPastPapers(classId) {
-    const content = document.getElementById("classContent");
-
-    content.innerHTML = `
-        <div class="card">
-            <input type="text" id="paperTitle" placeholder="Past paper title" />
-            <input type="file" id="paperFile" />
-            <button id="uploadPaperBtn">Upload Paper</button>
-        </div>
-
-        <div id="paperList"></div>
-    `;
-
-    document.getElementById("uploadPaperBtn").onclick = () => {
-        uploadPaper(classId);
-    };
-
-    loadPaperList(classId);
-}
-
-async function uploadPaper(classId) {
-    const title = document.getElementById("paperTitle").value;
-    const file = document.getElementById("paperFile").files[0];
-
-    if (!title || !file) return showToast("Fill all fields", "error");
-
-    const fileRef = ref(storage, `papers/${Date.now()}_${file.name}`);
-
-    await uploadBytes(fileRef, file);
-    const url = await getDownloadURL(fileRef);
-
-    await addDoc(collection(db, "pastpapers"), {
-        classId,
-        title,
-        fileUrl: url,
-        fileType: file.type,
-        createdAt: serverTimestamp()
-    });
-
-    document.getElementById("paperTitle").value = "";
-}
-
-function loadPaperList(classId) {
-    const list = document.getElementById("paperList");
-
-    const q = query(
-        collection(db, "pastpapers"),
-        where("classId", "==", classId)
-    );
-
-    onSnapshot(q, (snapshot) => {
-        list.innerHTML = "";
-
-        snapshot.forEach(docSnap => {
-            const p = docSnap.data();
-            const classId = docSnap.id;
-
-            const card = document.createElement("div");
-            card.className = "material-card";
-
-            let preview = "";
-
-            if (p.fileType.startsWith("image")) {
-                preview = `<img src="${p.fileUrl}" class="material-img" />`;
-            } else if (p.fileType === "application/pdf") {
-                preview = `
-                    <iframe src="${p.fileUrl}" class="pdf-preview"></iframe>
-                `;
-            } else {
-                preview = `
-                    <div class="file-preview">
-                        <span class="material-icons">description</span>
-                        <p>${p.title}</p>
+                        <p>
+                            ${sub.status === "graded"
+                                ? "Reviewed"
+                                : "Pending Review"}
+                        </p>
                     </div>
-                `;
-            }
 
-            card.innerHTML = `
-                <div class="material-title">${p.title}</div>
-                ${preview}
-                <button class="delete-btn" data-id="${docSnap.id}">
+                </div>
+
+                <a href="${sub.fileUrl}"
+                   target="_blank"
+                   class="open-submission-btn">
+
+                    Open PDF
+
+                </a>
+
+                <button class="grade-btn">
+                    ${sub.status === "graded"
+                        ? "Update Grade"
+                        : "Grade Exam"}
+                </button>
+
+                <button class="delete-submission-btn">
                     Delete
                 </button>
             `;
 
-            list.appendChild(card);
-        });
+            card.querySelector(".grade-btn").onclick = () => {
+                openGradeModal(submissionId, sub);
+            };
 
-        attachPaperDelete();
+            card.querySelector(".delete-submission-btn").onclick = async () => {
+
+            const confirmDelete = confirm(
+                "Delete this submission?"
+            );
+
+            if (!confirmDelete) return;
+
+            await deleteDoc(
+            doc(db, "examSubmissions", submissionId)
+        );
+
+        showToast("Submission deleted");
+    };
+
+        list.appendChild(card);
+        }
     });
 }
 
-function attachPaperDelete() {
-    document.querySelectorAll(".delete-btn").forEach(btn => {
-        btn.onclick = async () => {
-            const id = btn.dataset.id;
-
-            if (!confirm("Delete this examinations?")) return;
-
-            await deleteDoc(doc(db, "pastpapers", id));
-        };
-    });
-}
-
-
-function loadExaminations(classId) {
+function openPastPaperUpload(classId) {
     const content = document.getElementById("classContent");
 
     content.innerHTML = `
-        <div class="card">
-            <input type="text" id="examTitle" placeholder="Examination title" />
-            <input type="file" id="examFile" />
-            <button id="uploadExamBtn">Upload Examination</button>
+        <div class="upload-page">
+            <div class="upload-header">
+            <h2>Upload Past Paper</h2>
         </div>
 
-        <div id="examList"></div>
+        <div class="upload-card">
+            <input type="text"
+                    id="paperTitle"
+                    placeholder="Paper Title">
+                
+            <input type="text"
+                    id="paperSubject"
+                    placeholder="Subject">
+
+            <input type="number"
+                    id="paperYear"
+                    placeholder="Year">
+
+            <label class="upload-label">
+                Upload Thumbnail
+                <input type="file"
+                    id="paperThumbnail"
+                    accept="image/*">
+            </label>
+
+            <label class="upload-label">
+                Upload PDF
+                <input type="file"
+                    id="paperFile"
+                    accept=".pdf">
+            </label>
+
+            <button id="publishPaperBtn" class="publish-btn">
+                Publish Paper
+            </button>
+        </div>
+    </div>
     `;
 
-    document.getElementById("uploadExamBtn").onclick = () => {
-        uploadExam(classId);
+    document.getElementById("publishPaperBtn").onclick = () => {
+        uploadPastPaper(classId);
     };
-
-    loadExamList(classId);
 }
 
-async function uploadExam(classId) {
-    const title = document.getElementById("examTitle").value;
-    const file = document.getElementById("examFile").files[0];
+async function uploadPastPaper(classId) {
+    const title = document.getElementById("paperTitle").value;
+    const subject = document.getElementById("paperSubject").value;
+    const year = document.getElementById("paperYear").value;
+    const thumbFile = document.getElementById("paperThumbnail").files[0];
+    const paperFile = document.getElementById("paperFile").files[0];
+    if (!title || !paperFile) return showToast("Fill all fields", "error");
+    const teacher = getUserData();
+    let thumbnailUrl = "";
+    if (thumbFile) {
+        const thumbRef = ref(
+            storage,
+            `paper_thumbnails/${Date.now()}_${thumbFile.name}`
+        );
 
-    if (!title || !file) return showToast("Fill all fields", "error");
+        await uploadBytes(thumbRef, thumbFile);
+        thumbnailUrl = await getDownloadURL(thumbRef);
+    }
 
-    const fileRef = ref(storage, `exams/${Date.now()}_${file.name}`);
+    const fileRef = ref(
+        storage,
+        `pastpapers/${Date.now()}_${paperFile.name}`
+    );
 
-    await uploadBytes(fileRef, file);
-    const url = await getDownloadURL(fileRef);
+    await uploadBytes(fileRef, paperFile);
+    const fileUrl = await getDownloadURL(fileRef);
 
-    await addDoc(collection(db, "examinations"), {
+    const user = auth.currentUser;
+    
+    await addDoc(collection(db, "pastpapers"), {
         classId,
         title,
-        fileUrl: url,
-        fileType: file.type,
+        subject,
+        year,
+        thumbnail: thumbnailUrl,
+        fileUrl,
+        fileType: paperFile.type,
+        teacherId: user.uid,
+        teacherName: teacher.name || "Teacher",
+        teacherAvatar: teacher.photoURL || "",
         createdAt: serverTimestamp()
     });
 
-    document.getElementById("examTitle").value = "";
-    document.getElementById("examFile").value = "";
+    document.getElementById("paperTitle").value = "";
+    showToast("Past paper uploaded");
 }
 
-function loadExamList(classId) {
-    const list = document.getElementById("examList");
+async function openExamUpload(classId) {
+    const content = document.getElementById("classContent");
+    content.innerHTML = `
+        <div class="upload-page">
+            <div class="upload-header">
+                <h2>Create Exam</h2>
+            </div>
+            
+            <div class="upload-card">
+                <input type="text"
+                        id="examTitle"
+                        placeholder="Exam title">
+                        
+                <textarea
+                        id="examDescription"
+                        placeholder="Exam description"></textarea>
+                        
+                <input type="number"
+                        id="examDuration"
+                        placeholder="Duration in minutes">
+                        
+                <input type="number"
+                        id="examMarks"
+                        placeholder="Total marks">
+                        
+                <input type="date"
+                        id="examDueDate">
+                        
+                <textarea
+                        id="examInstructions"
+                        placeholder="Exam Instructions"></textarea>
+                        
+                <label class="upload-label">
+                    Upload Thumbnail
+                    <input type="file"
+                    id="examThumbnail"
+                    accept="image/*">
+                </label>
+                
+                <label class="upload-label">
+                    Upload Exam File
+                    <input type="file"
+                    id="examFile"
+                    accept=".pdf,image/*">
+                </label>
+                
+                <button id="publishExamBtn"
+                        class="publish-btn">
+                    Publish Exam
+                </button>
+            </div>
+
+            <div class="teacher-exams-list">
+                <h3>Published Exams</h3>
+
+                <div id="teacherExamsContainer"></div>
+            </div>
+        </div>
+    `;
+    loadTeacherExams(classId);
+    
+    document.getElementById("publishExamBtn").onclick = () => {
+        uploadExam(classId);
+    };
+}
+
+async function loadTeacherExams(classId) {
+
+    const container =
+        document.getElementById("teacherExamsContainer");
 
     const q = query(
         collection(db, "examinations"),
@@ -1663,58 +1640,221 @@ function loadExamList(classId) {
     );
 
     onSnapshot(q, (snapshot) => {
-        list.innerHTML = "";
 
-        snapshot.forEach(docSnap => {
-            const e = docSnap.data();
-            const classId = docSnap.id;
+        container.innerHTML = "";
 
-            const card = document.createElement("div");
-            card.className = "material-card";
+        if (snapshot.empty) {
 
-            let preview = "";
+            container.innerHTML = `
+                <div class="empty-state">
+                    <span class="material-icons">
+                        quiz
+                    </span>
 
-            if (e.fileType.startsWith("image")) {
-                preview = `<img src="${e.fileUrl}" class="material-img" />`;
-            } else if (e.fileType === "application/pdf") {
-                preview = `
-                    <iframe src="${e.fileUrl}" class="pdf-preview"></iframe>
-                `;
-            } else {
-                preview = `
-                    <div class="file-preview">
-                        <span class="material-icons">description</span>
-                        <p>${e.title}</p>
-                    </div>
-                `;
-            }
-
-            card.innerHTML = `
-                <div class="material-title">${e.title}</div>
-                ${preview}
-                <button class="delete-btn" data-id="${docSnap.id}">
-                    Delete
-                </button>
+                    <p>No exams published yet</p>
+                </div>
             `;
 
-            list.appendChild(card);
-        });
+            return;
+        }
 
-        attachExamDelete();
-    });
-}
+        snapshot.forEach(docSnap => {
 
-function attachExamDelete() {
-    document.querySelectorAll(".delete-btn").forEach(btn => {
-        btn.onclick = async () => {
-            const id = btn.dataset.id;
+            const exam = docSnap.data();
+            const examId = docSnap.id;
 
-            if (!confirm("Delete this examinations?")) return;
+            const card = document.createElement("div");
 
-            await deleteDoc(doc(db, "examinations", id));
+            card.className = "teacher-exam-card";
+
+            card.innerHTML = `
+                <div class="teacher-exam-info">
+
+                    <h4>${exam.title}</h4>
+
+                    <p>
+                        ${exam.description || ""}
+                    </p>
+
+                </div>
+
+                <div class="teacher-exam-actions">
+
+                    <button class="view-subs-btn">
+                        View Submissions
+                    </button>
+
+                    <button class="delete-exam-btn">
+                        Delete Exam
+                    </button>
+
+                </div>
+            `;
+
+            card.querySelector(".view-subs-btn").onclick = () => {
+
+                openExamSubmissions(examId, exam);
+
+            };
+
+            card.querySelector(".delete-exam-btn").onclick = async () => {
+
+           const confirmDelete = confirm(
+                "Delete this exam?"
+            );
+
+            if (!confirmDelete) return;
+
+            await deleteDoc(
+                doc(db, "examinations", examId)
+            );
+
+            showToast("Exam deleted");
         };
+
+        container.appendChild(card);
+        });
     });
 }
+
+async function uploadExam(classId) {
+    const title = document.getElementById("examTitle").value;
+    const description = document.getElementById("examDescription").value;
+    const duration = document.getElementById("examDuration").value;
+    const totalMarks = document.getElementById("examMarks").value;
+    const dueDate = document.getElementById("examDueDate").value;
+    const instructions = document.getElementById("examInstructions").value;
+    const thumbFile = document.getElementById("examThumbnail").files[0];
+    const examFile = document.getElementById("examFile").files[0];
+
+    if (!title || !examFile) {
+        return showToast("Please complete required fields", "warning");
+    }
+
+    let thumbnailUrl = "";
+    if (!thumbFile) {
+        const thumbRef = ref(
+            storage,
+            `exam_thumbnails/${Date.now()}_${thumbFile.name}`
+        );
+        await uploadBytes(thumbRef, thumbFile);
+
+        thumbnailUrl = await getDownloadURL(thumbRef);
+    }
+
+    const examRef = ref(
+        storage,
+        `examinations/${Date.now}_${examFile.name}`
+    );
+    await uploadBytes(examRef, examFile);
+
+    const examUrl = await getDownloadURL(examRef);
+    const user = auth.currentUser;
+    await addDoc(collection(db, "examinations"), {
+        classId,
+        title,
+        description,
+        duration,
+        totalMarks,
+        dueDate,
+        instructions,
+        thumbnail: thumbnailUrl,
+        fileUrl: examUrl,
+        fileType: examFile.type,
+        teacherId: user.uid,
+        createdAt: serverTimestamp()
+    });
+    showToast("Exam published successfully");
+}
+
+function openGradeModal(submissionId, submission) {
+
+    const modal = document.createElement("div");
+
+    modal.className = "grade-modal";
+
+    modal.innerHTML = `
+
+        <div class="grade-modal-overlay"></div>
+
+        <div class="grade-modal-content">
+
+            <div class="grade-modal-header">
+
+                <h2>Grade Exam</h2>
+
+                <button
+                    class="close-grade-modal"
+                    id="cancelGradeBtn"
+                >
+                    ✕
+                </button>
+
+            </div>
+
+            <input
+                type="number"
+                id="gradeInput"
+                placeholder="Enter Score %"
+                value="${submission.grade || ""}"
+            />
+
+            <textarea
+                id="feedbackInput"
+                placeholder="Write feedback..."
+            >${submission.teacherFeedback || ""}</textarea>
+
+            <div class="grade-actions">
+
+                <button
+                    id="saveGradeBtn"
+                    class="save-btn"
+                >
+                    Save Grade
+                </button>
+
+            </div>
+
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    document.getElementById("cancelGradeBtn")
+    .onclick = () => {
+        modal.remove();
+    };
+
+    modal.querySelector(".grade-modal-overlay")
+    .onclick = () => {
+        modal.remove();
+    };
+
+    document.getElementById("saveGradeBtn")
+    .onclick = async () => {
+
+        const grade =
+            document.getElementById("gradeInput").value;
+
+        const feedback =
+            document.getElementById("feedbackInput").value;
+
+        await updateDoc(
+            doc(db, "examSubmissions", submissionId),
+            {
+                grade: Number(grade),
+                teacherFeedback: feedback,
+                status: "graded",
+                gradedAt: serverTimestamp()
+            }
+        );
+
+        modal.remove();
+
+        showToast("Grade saved");
+    };
+}
+
 
 function renderDashboardSkeleton() {
     return `
@@ -1829,17 +1969,6 @@ function renderDashboardUI(user) {
                     </div>
                 </div>
 
-                <div class="insight-card assignments">
-                    <div class="insight-icon">
-                        <span class="material-icons">assignment</span>
-                    </div>
-                    <div class="insight-info">
-                        <h4 id="assignmentsCount">0</h4>
-                        <p>Assignments</p>
-                        <small id="assignmentsTrend">Active tasks</small>
-                    </div>
-                </div>
-
                 <div class="insight-card materials">
                     <div class="insight-icon">
                         <span class="material-icons">menu_book</span>
@@ -1887,7 +2016,6 @@ function loadDashboardStats(teacherId) {
             formatNumber(classIds.length);
 
         if (classIds.length === 0) {
-            updateInsight("You have no classes yet. Create your first class.");
             return;
         }
 

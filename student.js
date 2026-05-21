@@ -2,10 +2,9 @@ import { initAuth } from "../core/auth.js";
 import { registerRoutes, navigate } from "../core/router.js";
 import { loadDashboard } from "./student/pages/dashboard.js";
 import { loadClasses } from "./student/pages/classes.js";
-import { loadTasksPage } from "./student/pages/tasks.js";
 import { loadProfile } from "./student/pages/profile.js";
-import { loadSubscription } from "./student/pages/subscription.js";
-import { loadPaymentPage } from "./student/pages/payment.js";
+import { loadSearch } from "./student/pages/search.js";
+
 
 
 initAuth((user) => {
@@ -13,10 +12,8 @@ initAuth((user) => {
   registerRoutes({
     dashboard: loadDashboard,
     classes: loadClasses,
-    tasks: loadTasksPage,
-    profile: loadProfile,
-    subscription: loadSubscription,
-    payment: loadPaymentPage
+    search: loadSearch,
+    profile: loadProfile
   });
 
   setupNav();

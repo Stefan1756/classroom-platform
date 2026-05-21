@@ -1,17 +1,16 @@
-import { checkPageAccess } from "./access.js";
-
 let routes = {};
+let historyStack = [];
 
 export function registerRoutes(r) {
   routes = r;
 }
 
-export async function navigate(page) {
-  const allowed = await checkPageAccess(page);
+export async function navigate(page, data = null) {
 
-  if (!allowed) {
-    page = "subscription";
-  }
+  historyStack.push({
+    page,
+    data
+  });
 
   if (!routes[page]) {
     console.error("Route not found:", page);
@@ -19,4 +18,15 @@ export async function navigate(page) {
   }
 
   routes[page]();
+}
+
+export function goBack() {
+  historyStack.pop();
+  const previous = historyStack[historyStack.length - 1];
+  if (!previous) {
+    navigate("dashboard");
+    return;
+  }
+
+  routes[previous.page](previous.data);
 }
