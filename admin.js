@@ -17,7 +17,6 @@ import {
     doc} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import { loadUsers, initUserControls } from "./admin-users.js";
-import { loadSubscription } from "./student/pages/subscription.js";
 import { getUser } from "./core/auth.js";
 
 const firebaseConfig = {
