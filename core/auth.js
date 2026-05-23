@@ -73,7 +73,7 @@ export function getUserData() {
   return currentUserData;
 }
 
-export function logout() {
+export function logoutUser() {
   auth.signOut();
   window.location.href = "index.html";
 }
