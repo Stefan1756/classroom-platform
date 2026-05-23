@@ -124,8 +124,11 @@ function renderResults(items) {
     items.forEach(item => {
         const card = document.createElement("div");
         card.className = "search-card";
+        const image =
+            item.image ||
+            getClassImage(item.name)
         card.innerHTML = `
-            <img src="${item.image || 'class.jpeg'}" />
+            <img src="${image}" />
             
             <div class="search-card-body">
                 <h3>${item.name}</h3>
@@ -235,8 +238,11 @@ async function loadTrendingClasses() {
     classes.forEach(cls => {
         const card = document.createElement("div");
         card.className = "trend-card";
+        const image =
+            cls.image ||
+            getClassImage(cls.name)
         card.innerHTML = `
-            <img src="${cls.image || 'class.jpeg'}">
+            <img src="${image}">
             
             <div class="trend-overlay">
                 <h4>${cls.name}</h4>
@@ -247,4 +253,45 @@ async function loadTrendingClasses() {
         `;
         container.appendChild(card);
     });
+}
+
+function getClassImage(name = "") {
+
+    const subject = name.toLowerCase();
+
+    if (subject.includes("biology")) {
+        return "https://images.unsplash.com/photo-1633167606207-d840b5070fc2?q=80&w=752&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
+    }
+    if (subject.includes("classification")) {
+        return "https://images.unsplash.com/photo-1633167606207-d840b5070fc2?q=80&w=752&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D";
+    }
+    if (subject.includes("chemistry")) {
+        return "https://images.unsplash.com/photo-1694230155228-cdde50083573?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Nnx8Y2hlbWlzdHJ5fGVufDB8fDB8fHww";
+    }
+    if (subject.includes("bonding")) {
+        return "https://images.unsplash.com/photo-1694230155228-cdde50083573?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Nnx8Y2hlbWlzdHJ5fGVufDB8fDB8fHww";
+    }
+    if (subject.includes("physics")) {
+        return "https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8cGh5c2ljc3xlbnwwfHwwfHx8MA%3D%3D";
+    }
+    if (subject.includes("mathematics")) { 
+        return "https://images.unsplash.com/photo-1676302440263-c6b4cea29567?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fG1hdGhlbWF0aWNzfGVufDB8fDB8fHww";
+    }
+    if (subject.includes("algebra")) { 
+        return "https://images.unsplash.com/photo-1676302440263-c6b4cea29567?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fG1hdGhlbWF0aWNzfGVufDB8fDB8fHww";
+    }
+    if (subject.includes("economics")) { 
+       return "https://plus.unsplash.com/premium_photo-1676673189320-76524a64684a?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTN8fGVjb25vbWljc3xlbnwwfHwwfHx8MA%3D%3D";
+    }
+    if (subject.includes("history")) {
+       return "https://plus.unsplash.com/premium_photo-1674727219372-4ba6644106bc?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MjF8fGhpc3Rvcnl8ZW58MHx8MHx8fDA%3D";
+    }
+    if (subject.includes("commerce")) {
+        return "https://plus.unsplash.com/premium_photo-1683141154082-324d296f3c66?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OXx8Y29tbWVyY2V8ZW58MHx8MHx8fDA%3D";
+    }
+    if (subject.includes("geography")) {
+        return "https://images.unsplash.com/photo-1604351888999-9ea0a2851e61?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8Z2VvZ3JhcGh5fGVufDB8fDB8fHww";
+    };
+
+    return "https://plus.unsplash.com/premium_photo-1682125773446-259ce64f9dd7?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NXx8c2Nob29sfGVufDB8fDB8fHww";
 }
