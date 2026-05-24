@@ -2002,3 +2002,139 @@ input::placeholder{
     font-weight: 600;
     cursor: pointer;
 }
+
+.edit-account-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 99999;
+}
+
+.edit-account-content {
+    width: 100%;
+    max-width: 520px;
+    max-height: 92vh;
+    overflow-y: auto;
+    background: white;
+    border-radius: 30px 30px 0 0;
+    padding: 24px;
+    animation: slideUp .25s ease;
+}
+
+@keyframes slideUp{
+    from{
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+.edit-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 26px;
+}
+
+.edit-modal-header h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #111;
+}
+
+.edit-modal-header button {
+    width: 42px; height: 42px; border: none;
+    border-radius: 14px;
+    background: #f3f4f6;
+    cursor: pointer;
+}
+
+.edit-avatar-wrap{
+    display: flex;
+    justify-content: center;
+    margin-bottom: 30px;
+}
+
+.avatar-upload-label {
+    position: relative;
+    cursor: pointer;
+}
+
+.edit-avatar-img,
+.edit-avatar-placeholder {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid #f3f4f6;
+}
+
+.edit-avatar-placeholder {
+    background: #111827;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 38px;
+    font-weight: 700;
+}
+
+.camera-badge {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 36px;
+    height: 36px;
+    background: #4338ca;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    border-radius: 50%;
+    border: 3px solid white;
+    cursor: pointer;
+}
+
+.edit-group {
+    margin-bottom: 28px;
+}
+
+.edit-group h4 {
+    font-size: 14px;
+    color: #777;
+    margin-bottom: 14px;
+    font-weight: 700;
+}
+
+.edit-group input,
+.edit-group select {
+    width: 90%;
+    height: 56px;
+    border-radius: 16px;
+    border: 1px solid #e5e7eb;
+    padding: 0 16px;
+    margin-bottom: 14px;
+    font-family: 'Poppins';
+}
+
+.edit-group input:focus,
+.edit-group select:focus {
+    border-color: #4338ca;
+}
+
+.save-account-btn {
+    width: 100%;
+    height: 58px;
+    border: none;
+    border-radius: 18px;
+    background: #111827;
+    color: white;
+    font-family: 'Poppins';
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+}

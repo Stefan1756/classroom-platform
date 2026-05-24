@@ -253,7 +253,8 @@ function openAccountDetailsPage() {
                         <p>Joined ${joinedDate}</p>
                     </div>
                 </div>
-                <button class="edit-account-btn">
+                <button class="edit-account-btn"
+                            id="editAccountBtn">
                     Edit
                 </button>
             </div>
@@ -316,6 +317,10 @@ function openAccountDetailsPage() {
     `;
     document.getElementById("backProfileBtn").onclick = () => {
         loadProfile();
+    };
+
+    document.getElementById("editAccountBtn").onclick = () => {
+        openEditAccountModal();
     };
 
     document.getElementById("openDeleteModalBtn").onclick = () => {
@@ -409,6 +414,184 @@ function openDeleteAccountModal(username) {
                 "warning"
             );
         }
+    };
+}
+
+function openEditAccountModal() {
+    const userData = getUserData();
+    const modal = document.createElement("div");
+    modal.className = "edit-account-modal";
+    modal.innerHTML = `
+        <div class="edit-account-content">
+            <div class="edit-modal-header">
+                <h2>Edit Profile</h2>
+                <button id="closeEditModalBtn">
+                    <span class="material-icons">
+                        close
+                    </span>
+                </button>
+            </div>
+            
+            <div class="edit-avatar-wrap">
+                <label for="profileAvatarInput"
+                    class="avatar-upload-label">
+                    ${
+                        userData?.avatar
+                        ? `
+                            <img src="${userData.avatar}"
+                            id="avatarPreview"
+                            class="edit-avatar-img" />
+                        `
+                        : `
+                            <div id="avatarPreview"
+                                class="edit-avatar-placeholder">
+                                ${(userData?.username || "S")
+                                    .charAt(0)
+                                    .toUpperCase()}
+                            </div>
+                        `
+                    }
+                    
+                    <div class="camera-badge">
+                        <span class="material-icons">
+                            photo_camera
+                        </span>
+                    </div>
+                </label>
+                
+                <input type="file"
+                    id="profileAvatarInput"
+                    accept="image/*"
+                    hidden />
+            </div>
+            
+            <div class="edit-group">
+                <h4>Personal Details</h4>
+                
+                <input type="text"
+                    id="editFullName"
+                    placeholder="Full name"
+                    value="${userData?.username || ""}" />
+                    
+                <input type="text"
+                    id="editPhone"
+                    placeholder="Phone number"
+                    value="${userData?.phone || ""}" />
+                    
+                <input type="text"
+                    id="editNationality"
+                    placeholder="Nationality"
+                    value="${userData?.nationality || "Tanzanian"}" />
+            </div>
+            
+            <div class="edit-group">
+                <h4>School Details</h4>
+                
+                <input type="text"
+                    id="editSchoolName"
+                    placeholder="School name"
+                    value="${userData?.schoolName || ""}" />
+                    
+                <select id="editSchoolLevel">
+                    <option value="">
+                        Select School Level
+                    </option>
+                    
+                    <option value="Primary">
+                        Primary
+                    </option>
+                    
+                    <option value="Secondary">
+                        Secondary
+                    </option>
+                    
+                    <option value="College">
+                        College
+                    </option>
+                    
+                    <option value="University">
+                        University
+                    </option>
+                </select>
+            </div>
+            
+            <button id="saveAccountChangesBtn"
+                class="save-account-btn">
+                Save Changes
+            </button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    const levelSelect = document.getElementById("editSchoolLevel");
+    levelSelect.value = userData?.schoolLevel || "";
+
+    document.getElementById("closeEditModalBtn").onclick = () => {
+        modal.remove();
+    };
+
+    document.getElementById("profileAvatarInput").onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const preview = document.getElementById("avatarPreview");
+        const url = URL.createObjectURL(file);
+        if (preview.tagName === "IMG") {
+            preview.src = url;
+        } else {
+            preview.outerHTML = `
+                <img src="${url}"
+                    id="avatarPreview"
+                    class="edit-avatar-img" />
+            `;
+        }
+    };
+
+    document.getElementById("saveAccountChangesBtn").onclick = async () => {
+        const btn = document.getElementById("saveAccountChangesBtn");
+
+        btn.innerHTML = "Saving...";
+        btn.disabled = true;
+
+        try {
+            const user = getUser();
+            const fullName = document.getElementById("editFullName").value.trim();
+            const phone = document.getElementById("editPhone").value.trim();
+            const nationality = document.getElementById("editNationality").value.trim();
+            const schoolName = document.getElementById("editSchoolName").value.trim();
+            const schoolLevel = document.getElementById("editSchoolLevel").value.trim();
+            const avatarFile = document.getElementById("profileAvatarInput").files[0];
+            let avatarUrl = userData?.avatar || "";
+            if (avatarFile) {
+                const storageRef = ref(
+                    storage,
+                    `avatars/${user.uid}_${Date.now()}`
+                );
+                await uploadBytes(
+                    storageRef,
+                    avatarFile
+                );
+                avatarUrl = await getDownloadURL(storageRef);
+            }
+
+            await updateDoc(
+                doc(db, "users", user.uid),
+                {
+                    username: fullName,
+                    phone,
+                    nationality,
+                    schoolName,
+                    schoolLevel,
+                    avatar: avatarUrl
+                }
+            );
+            modal.remove();
+            loadProfile();
+        } catch (err) {
+            console.error(err);
+            showToast("Failed to update profile", "error");
+        }
+        btn.innerHTML = "Save Changes";
+        btn.disabled = false;
     };
 }
 
