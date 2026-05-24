@@ -1772,3 +1772,233 @@ input::placeholder{
     gap: 10px;
     cursor: pointer;
 }
+
+.account-details-page {
+    padding: 20px;
+    padding-bottom: 120px;
+    background: #f6f7fb;
+    min-height: 100vh;
+}
+
+.details-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 28px;
+}
+
+.back-details-btn {
+    width: 42px;
+    height: 42px;
+    border: none;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 1px solid #ececec;
+    border-radius: 14px;
+}
+
+.details-header h2 {
+    font-size: 26px;
+    font-weight: 700;
+    color: #111;
+}
+
+.account-main-card {
+    background: white;
+    border-radius: 24px;
+    padding: 20px;
+    border: 1px solid #ececec;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 30px;
+}
+
+.account-main-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.account-icon {
+    width: 58px; height: 58px; border-radius: 18px; background: #eef2ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.account-icon span {
+    color: #4338ca;
+}
+
+.account-main-card h3 {
+    font-size: 18px;
+    color: #111;
+    margin-bottom: 4px;
+}
+
+.account-main-card p {
+    color: #777;
+    font-size: 13px;
+}
+
+.edit-account-btn {
+    border: none;
+    background: #111827;
+    color: white;
+    height: 52px;
+    padding: 0 18px;
+    border-radius: 14px;
+    cursor: pointer;
+    font-weight: 600;
+    font-family: 'Poppins';
+}
+
+.details-section{
+    margin-bottom: 30px;
+}
+
+.details-section h4 {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 14px;
+    font-weight: 700;
+}
+
+.details-card {
+    background: white;
+    border-radius: 22px;
+    overflow: hidden;
+    border: 1px solid #ececec;
+}
+
+.detail-row{
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 18px;
+    border-bottom: 1px solid #f2f2f2;
+}
+
+.detail-row:last-child{
+    border-bottom: none;
+}
+
+.detail-label {
+    color: #888;
+    font-size: 14px;
+}
+
+.detail-value {
+    color: #888;
+    text-align: right;
+}
+
+.delete-account-wrap {
+    margin-top: 40px;
+}
+
+.delete-account-btn {
+    width: 100%;
+    height: 58px;
+    border: none;
+    border-radius: 18px;
+    background: #fee2e2;
+    color: #dc2626;
+    font-weight: 700;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.delete-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+}
+
+.delete-modal-content {
+    width: 100%;
+    max-width: 380px;
+    background: white;
+    border-radius: 28px;
+    padding: 28px;
+    text-align: center;
+}
+
+.delete-icon-wrap{
+    width: 72px; height: 72px; border-radius: 50%; background: #fee2e2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: auto;
+    margin-bottom: 20px;
+}
+
+.delete-icon-wrap span {
+    color: #dc2626;
+    font-size: 34px;
+}
+
+.delete-modal-content h2 {
+    margin-bottom: 10px;
+    color: #111;
+}
+
+.delete-modal-content p {
+    color: #666;
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 22px;
+}
+
+.delete-modal-content input {
+    width: 90%;
+    height: 54px;
+    border-radius: 16px;
+    border: 1px solid #ddd;
+    padding: 0 16px;
+    outline: none;
+    margin-bottom: 18px;
+}
+
+.confirm-delete-btn{
+    width: 100%;
+    height: 54px;
+    border: none;
+    border-radius: 16px;
+    font-family: 'Poppins';
+    background: #ddd;
+    color: white;
+    font-weight: 700;
+    cursor: not-allowed;
+    margin-bottom: 12px;
+}
+
+.confirm-delete-btn.active{
+    background: #dc2626;
+    cursor: pointer;
+}
+
+.cancel-delete-btn{
+    width: 100%;
+    height: 54px;
+    border: none;
+    border-radius: 16px;
+    font-family: 'Poppins';
+    background: #f3f4f6;
+    color: #111;
+    font-weight: 600;
+    cursor: pointer;
+}
