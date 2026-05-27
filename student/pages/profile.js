@@ -1,5 +1,10 @@
 import { db } from "../../core/firebase.js";
-import { deleteUser } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import {
+    deleteUser,
+    EmailAuthProvider,
+    reauthenticateWithCredential,
+    updatePassword
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { storage } from "../../core/firebase.js";
 import { getUser, getUserData, logoutUser } from "../../core/auth.js";
 import { 
@@ -123,7 +128,7 @@ export function loadProfile() {
                         
                         <div class="left">
                             <span class="material-icons">
-                                support_agent
+                                help
                             </span>
                             
                             <p>Help Center</p>
@@ -196,15 +201,15 @@ function setupProfileActions() {
     };
 
     document.getElementById("changePasswordBtn").onclick = () => {
-        console.log("go to");
+        openChangePasswordPage();
     };
 
     document.getElementById("helpCenterBtn").onclick = () => {
-        console.log("go to");
+        openHelpCenterPage();
     };
 
     document.getElementById("privacyBtn").onclick = () => {
-        console.log("go to");
+        openPrivacyPolicyPage();
     };
 
     document.getElementById("logoutBtn")
@@ -592,6 +597,438 @@ function openEditAccountModal() {
         }
         btn.innerHTML = "Save Changes";
         btn.disabled = false;
+    };
+}
+
+export function openChangePasswordPage() {
+    const container = document.getElementById("contentArea");
+    container.innerHTML = `
+        <div class="change-password-page">
+            <div class="change-password-header">
+                <button id="backProfileBtn" class="back-details-btn">
+                    <span class="material-icons">
+                        arrow_back_ios
+                    </span>
+                </button>
+                <h2>Change Password</h2>
+            </div>
+            
+            <div class="password-card">
+                <div class="password-input-group">
+                    
+                    <div class="password-input-box">
+                        <input
+                            type="password"
+                            id="currentPassword"
+                            placeholder="Current Password"
+                        />
+                        
+                        <span
+                            class="material-icons toggle-password"
+                            data-target="currentPassword">
+                            visibility_off
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="password-input-group">
+                    
+                    <div class="password-input-box">
+                        <input
+                            type="password"
+                            id="newPassword"
+                            placeholder="New Password"
+                        />
+                        
+                        <span
+                            class="material-icons toggle-password"
+                            data-target="newPassword">
+                            visibility_off
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="password-input-group">
+                    
+                    <div class="password-input-box">
+                        <input
+                            type="password"
+                            id="confirmPassword"
+                            placeholder="Confirm Password"
+                        />
+                        
+                        <span
+                            class="material-icons toggle-password"
+                            data-target="confirmPassword">
+                            visibility_off
+                        </span>
+                    </div>
+                </div>
+                
+                <button id="changePasswordBtn"
+                        class="change-password-btn">
+                    Change Password
+                </button>
+            </div>
+        </div>
+    `;
+    document.getElementById("backProfileBtn").onclick = () => {
+        loadProfile();
+    };
+
+    initPasswordToggles();
+    handlePasswordChange();
+}
+
+function initPasswordToggles() {
+    document.querySelectorAll(".toggle-password").forEach(icon => {
+        icon.onclick = () => {
+            const target = document.getElementById(icon.dataset.target);
+            
+            if (target.type === "password") {
+                target.type = "text";
+                icon.textContent = "visibility";
+            } else {
+                target.type = "password";
+                icon.textContent = "visibility_off";
+            }
+        };
+    });
+}
+
+async function handlePasswordChange() {
+    const btn = document.getElementById("changePasswordBtn");
+    btn.onclick = async () => {
+        const currentPassword = document.getElementById("currentPassword").value;
+        const newPassword = document.getElementById("newPassword").value;
+        const confirmPassword = document.getElementById("confirmPassword").value;
+
+        if (
+            !currentPassword ||
+            !newPassword ||
+            !confirmPassword
+        ) {
+            showToast("Fill all fields", "warning");
+            return;
+        }
+
+        if (newPassword.length < 6) {
+            showToast(
+                "Password must be at least 6 characters",
+                "warning"
+            );
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            showToast(
+                "Password do not match",
+                "error"
+            );
+            return;
+        }
+
+        try {
+            btn.innerHTML = "Updating...";
+            btn.disabled = true;
+
+            const user = getUser();
+
+            const credential = 
+                EmailAuthProvider.credential(
+                    user.email,
+                    currentPassword
+                );
+
+            await reauthenticateWithCredential(
+                user,
+                credential
+            );
+
+            await updatePassword(
+                user,
+                newPassword
+            );
+
+            showToast(
+                "Password Updated successfully",
+                "success"
+            );
+
+            setTimeout(() => {
+                loadProfile();
+            }, 1200);
+        } catch (err) {
+            console.error(err);
+            showToast(
+                "Current password is incorrect",
+                "error"
+            );
+        }
+
+        btn.innerHTML = "Change Password";
+        btn.disabled = false;
+    };
+}
+
+function openHelpCenterPage() {
+    const container = document.getElementById("contentArea");
+    container.innerHTML = `
+        <div class="help-center-page">
+            <div class="help-header">
+                <button id="backHelpBtn"
+                        class="back-details-btn">
+                    <span class="material-icons">
+                        arrow_back_ios
+                    </span>
+                </button>
+                <h2>Help Center</h2>
+            </div>
+            
+            <div class="help-hero">
+                <div class="help-icon-wrap">
+                    <span class="material-icons">
+                        support_agent
+                    </span>
+                </div>
+
+                <h3>How Can We Help?</h3>
+                
+                <p>
+                    Get in touch with our support team
+                    through any of the channels below.
+                </p>
+            </div>
+            
+            <div class="support-options">
+                <div class="support-card"
+                    id="callSupportBtn">
+                    
+                    <div class="support-icon call">
+                        <span class="material-icons">
+                            call
+                        </span>
+                    </div>
+                    
+                    <div class="support-info">
+                        <h4>Call Us</h4>
+                        <p>+255 617 397 356</p>
+                    </div>
+                    
+                    <span class="material-icons arrow">
+                        chevron_right
+                    </span>
+                </div>
+                
+                <div class="support-card"
+                    id="emailSupportBtn">
+                    
+                    <div class="support-icon email">
+                        <span class="material-icons">
+                            mail
+                        </span>
+                    </div>
+                    
+                    <div class="support-info">
+                        <h4>Email Us</h4>
+                        <p>32veenanthony@gmail.com</p>
+                    </div>
+                    
+                    <span class="material-icons arrow">
+                        chevron_right
+                    </span>
+                </div>
+                
+                <div class="support-card"
+                    id="whatsappSupportBtn">
+                    
+                    <div class="support-icon whatsapp">
+                        <span class="material-icons">
+                            chat
+                        </span>
+                    </div>
+                    
+                    <div class="support-info">
+                        <h4>WhatsApp Us</h4>
+                        <p>Chat with support team</p>
+                    </div>
+                    
+                    <span class="material-icons arrow">
+                        chevron_right
+                    </span>
+                </div>
+            </div>
+        </div>
+    `;
+    document.getElementById("backHelpBtn").onclick = () => {
+        loadProfile();
+    };
+
+    document.getElementById("callSupportBtn").onclick = () => {
+        window.location.href = "tel:+255617397356";
+    };
+
+    document.getElementById("emailSupportBtn").onclick = () => {
+        window.location.href = "mailto:32veenanthony@gmail.com";
+    };
+
+    document.getElementById("whatsappSupportBtn").onclick = () => {
+        window.open(
+            "https://wa.me/255757584984",
+            "_blank"
+        );
+    };
+}
+
+function openPrivacyPolicyPage() {
+    const container = document.getElementById("contentArea");
+    container.innerHTML = `
+        <div class="privacy-page">
+            <div class="privacy-header">
+                <button id="backPrivacyBtn"
+                        class="back-details-btn">
+                    <span class="material-icons">
+                        arrow_back_ios
+                    </span>
+                </button>
+                
+                <h2>Privacy & Terms</h2>
+            </div>
+            
+            <div class="privacy-top-card">
+                <div class="privacy-icon">
+                    <span class="material-icons">
+                        verified_user
+                    </span>
+                </div>
+                
+                <h3>Your Privacy Matters</h3>
+                
+                <p>
+                    We are committed to protecting
+                    your information and creating
+                    a safe learning environments.
+                </p>
+            </div>
+            
+            <div class="policy-section">
+                <h3>Privacy Policy</h3>
+                <div class="policy-card">
+                    <h4>1. Information We Collect</h4>
+                    
+                    <p>
+                        We collect basic student
+                        information including name,
+                        email address, phone number,
+                        school information and learning
+                        activity to improve user
+                        experience and educational
+                        services.
+                    </p>
+                    
+                    <h4>2. How We Use Your Data</h4>
+                    
+                    <p>
+                        Your information is used to
+                        manage your learning account,
+                        improve course recommendations,
+                        track classroom progress and 
+                        provide customer support.
+                    </p>
+                    
+                    <h4>3. Data Protection</h4>
+                    
+                    <p>
+                        We use secure technologies and
+                        encrypted systems to protect
+                        your personal information from
+                        unauthorized access or misuse.
+                    </p>
+                    
+                    <h4>4. Third Party Services</h4>
+                    
+                    <p>
+                        Our platform may integrate with 
+                        trusted third-party services such
+                        as payment providers, cloud
+                        storage and communication tools.
+                    </p>
+                    
+                    <h4>5. Student Responsibility</h4>
+                    
+                    <p>
+                        Students are responsible for
+                        keeping their login credentials
+                        private and using the platform
+                        respectfully.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="policy-section">
+                <h3>Terms & Conditions</h3>
+                <div class="policy-card">
+                    <h4>1. Educational Purpose</h4>
+                    
+                    <p>
+                        This platform is strictly created
+                        for educational learning,
+                        collaboration and academic
+                        improvement.
+                    </p>
+                    
+                    <h4>2. Classroom Access</h4>
+                    
+                    <p>
+                        Students may only access
+                        classrooms they have officially
+                        enrolled in and been approved for.
+                    </p>
+                    
+                    <h4>3. Content Ownership</h4>
+                    
+                    <p>
+                        All uploaded materials, exams,
+                        videos and educational content
+                        belong to their respective
+                        teachers or content owners.
+                    </p>
+                    
+                    <h4>4. Prohibited Activities</h4>
+                    
+                    <p>
+                        Users must not abuse the platform,
+                        upload harmful content, share
+                        illegal material or attempt
+                        unauthorized system access.
+                    </p>
+                    
+                    <h4>5. Account Suspension</h4>
+                    
+                    <p>
+                        The system reserves the right to
+                        suspend accounts involved in
+                        miscound, cheating or platform
+                        abuse.
+                    </p>
+                    
+                    <h4>6. Updates To Policies</h4>
+                    
+                    <p>
+                        Policies and terms may be updated
+                        periodically to improve platform
+                        security and services.
+                    </p>
+                </div>
+            </div>
+            
+            <div class="policy-footer">
+                Last Updated, May 2026
+            </div>
+        </div>
+    `;
+    document.getElementById("backPrivacyBtn").onclick = () => {
+        loadProfile();
     };
 }
 
