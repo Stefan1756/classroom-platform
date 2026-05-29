@@ -21,39 +21,6 @@ export function initAuth(callback) {
   });
 }
 
-export async function ensureFreeTrial(user) {
-  
-  const userRef = doc(db, "users", user.uid);
-
-  const userSnap = await getDoc(userRef);
-
-  if (!userSnap.exists()) return;
-
-  const userData = userSnap.data();
-
-  if (userData.role !== "student") return;
-
-  if (user.subscriptionStatus === "active") return;
-
-  const now = new Date();
-
-  const endDate = new Date();
-  endDate.setDate(endDate.getDate() + 7);
-
-  await setDoc(userRef, {
-    subscriptionPlan: "Free Trial",
-    subscriptionPlanId: "free_trial",
-    subscriptionStatus: "active",
-    classLimit: -1,
-    subscriptionStart: Timestamp.fromDate(now),
-    subscriptionEnd: Timestamp.fromDate(endDate),
-    hasActiveSubscription: true
-  }, { merge: true });
-
-  console.log("Free trial activated");
-  
-}
-
 export function getUser() {
   return currentUser;
 }

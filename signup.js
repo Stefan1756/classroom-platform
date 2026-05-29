@@ -1,7 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { ensureFreeTrial } from "./core/auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDq_02L2kHPr5jgjblWk_Vrs_JcRrjSBdA",
@@ -21,22 +20,30 @@ document.getElementById("signupBtn").addEventListener("click", async () => {
     const username = document.getElementById("username").value;
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
+    const selectedRole = document.querySelector('input[name="role"]:checked').value;
+    const accepted = document.getElementById("termsCheck").checked;
 
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
-        await ensureFreeTrial(userCredential.user);
 
-        let role = "student";
+        let role = selectedRole;
         let status = "active";
 
         if (email === "32veenanthony@gmail.com") {
             role = "admin";
         }
 
-        if (email.includes("teacher")) {
-            role = "teacher";
+        if (role === "teacher") {
             status = "pending";
+        }
+
+        if (!accepted) {
+            showMessage(
+                "Please accept Terms & Conditions",
+                "warning"
+            );
+            return;
         }
 
         await setDoc(doc(db, "users", user.uid), {
@@ -87,3 +94,26 @@ function showMessage(text, type = "success") {
         box.classList.remove("show");
     }, 4000);
 }
+
+document.querySelectorAll(".role-card").forEach(card => {
+    card.onclick = () => {
+        document.querySelectorAll(".role-card")
+        .forEach(c => c.classList.remove("active"));
+
+        card.classList.add("active");
+        card.querySelector("input").checked = true;
+    };
+});
+
+const passwordInput = document.getElementById("password");
+const togglePassword = document.getElementById("togglePassword");
+togglePassword.onclick = () => {
+    const isPassword = passwordInput.type === "password";
+
+    passwordInput.type = isPassword ? "text" : "password";
+
+    togglePassword.textContent = 
+        isPassword
+        ? "visibility"
+        : "visibility_off";
+};

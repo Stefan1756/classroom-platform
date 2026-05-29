@@ -1,7 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { ensureFreeTrial } from "./core/auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDq_02L2kHPr5jgjblWk_Vrs_JcRrjSBdA",
@@ -24,7 +23,6 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
     try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
-        await ensureFreeTrial(user);
 
         const userDoc = await getDoc(doc(db, "users", user.uid));
         const data = userDoc.data();
@@ -62,3 +60,46 @@ function showMessage(text, type = "success") {
         box.classList.remove("show");
     }, 4000);
 }
+
+const passwordInput = document.getElementById("password");
+const togglePassword = document.getElementById("togglePassword");
+togglePassword.onclick = () => {
+    const isPassword = passwordInput.type === "password";
+
+    passwordInput.type = isPassword ? "text" : "password";
+
+    togglePassword.textContent = 
+        isPassword
+        ? "visibility"
+        : "visibility_off";
+};
+
+document.getElementById("forgotPasswordBtn")
+.onclick = async (e) => {
+    e.preventDefault();
+
+    const email = document.getElementById("email").value;
+
+    if (!email) {
+        showMessage(
+            "Please enter your email first",
+            "warning"
+        );
+        return;
+    }
+
+    try {
+        await sendPasswordResetEmail(auth, email);
+
+        showMessage(
+            "Password reset link sent to email",
+            "success"
+        );
+
+    } catch (error) {
+        showMessage(
+            error.message,
+            "error"
+        );
+    }
+};
