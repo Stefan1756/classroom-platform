@@ -85,105 +85,477 @@ navItems.forEach(item => {
     });
 });
 
-function loadDashboard() {
+async function loadDashboard() {
+
     contentArea.innerHTML = `
-        <h3>Admin Dashboard</h3>
-        
-        <div class="stats">
-        
-            <div class="card">
-                <span class="material-icons">group</span>
-                <h4 id="totalUsers">0</h4>
-                <p>Total Users</p>
+    
+        <div class="admin-dashboard">
+
+            <div class="admin-header">
+
+                <div>
+                    <h2>TuityHub Admin</h2>
+                    <p>Monitor your learning platform</p>
+                </div>
+
+                <div class="admin-header-actions">
+
+                    <div class="admin-notification" id="openNotifications">
+                        <span class="material-icons">notifications</span>
+                        <span class="notif-badge" id="notifCount">0</span>
+                    </div>
+
+                    <div class="admin-avatar">
+                        <img src="logo.png" />
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="analytics-grid">
+
+                <div class="analytics-card">
+                    <div class="analytics-icon blue">
+                        <span class="material-icons">groups</span>
+                    </div>
+
+                    <div>
+                        <h3 id="totalUsers">0</h3>
+                        <p>Total Users</p>
+                    </div>
+                </div>
+
+                <div class="analytics-card">
+                    <div class="analytics-icon purple">
+                        <span class="material-icons">school</span>
+                    </div>
+
+                    <div>
+                        <h3 id="totalTeachers">0</h3>
+                        <p>Active Teachers</p>
+                    </div>
+                </div>
+
+                <div class="analytics-card">
+                    <div class="analytics-icon orange">
+                        <span class="material-icons">hourglass_top</span>
+                    </div>
+
+                    <div>
+                        <h3 id="pendingTeachers">0</h3>
+                        <p>Pending Approval</p>
+                    </div>
+                </div>
+
+                <div class="analytics-card">
+                    <div class="analytics-icon green">
+                        <span class="material-icons">payments</span>
+                    </div>
+
+                    <div>
+                        <h3 id="activeSubscriptions">0</h3>
+                        <p>Teacher Subscriptions</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="dashboard-section">
+
+                <div class="dashboard-card revenue-card">
+
+                    <div class="card-top">
+                        <h3>Platform Revenue</h3>
+                        <span class="material-icons">trending_up</span>
+                    </div>
+
+                    <h1 id="platformRevenue">TZS 0</h1>
+
+                    <p>
+                        Revenue from teacher subscriptions
+                    </p>
+
+                </div>
+
+                <div class="dashboard-card quick-actions">
+
+                    <div class="card-top">
+                        <h3>Quick Actions</h3>
+                    </div>
+
+                    <div class="quick-grid">
+
+                        <button class="quick-btn" id="openTeachers">
+                            <span class="material-icons">school</span>
+                            Teachers
+                        </button>
+
+                        <button class="quick-btn" id="openSubscriptionsBtn">
+                            <span class="material-icons">workspace_premium</span>
+                            Subscriptions
+                        </button>
+
+                        <button class="quick-btn" id="openPaymentsBtn">
+                            <span class="material-icons">payments</span>
+                            Withdraws
+                        </button>
+
+                        <button class="quick-btn" id="openUsersBtn">
+                            <span class="material-icons">groups</span>
+                            Users
+                        </button>
+
+                    </div>
+
+                </div>
+
             </div>
             
-            <div class="card">
-                <span class="material-icons">school</span>
-                <h4 id="totalTeachers">0</h4>
-                <p>Teachers</p>
+
+            <div class="dashboard-card recent-activity">
+
+                <div class="card-top">
+                    <h3>Recent Activity</h3>
+                    <span class="material-icons">history</span>
+                </div>
+
+                <div id="activityList"></div>
+
             </div>
-            
-            <div class="card">
-                <span class="material-icons">pending</span>
-                <h4 id="pendingTeachers">0</h4>
-                <p>Pending</p>
-            </div>
-        </div>
 
-        <div class="card earnings-card">
-
-            <div class="row space">
-                <h4>Record Teacher Earnings</h4>
-                <span class="material-icons">payments</span>
-            </div>
-            
-            <select id="earningTeacher">
-                <option value="">Select Teacher</option>
-            </select>
-
-            <select id="earningPlan">
-                <option value="2 Weeks">2 Weeks Plan</option>
-                <option value="1 Month">1 Month Plan</option>
-            </select>
-
-            <input
-                type="number"
-                id="earningAmount"
-                placeholder="Amount"
-            />
-
-            <input
-                type="text"
-                id="earningStudent"
-                placeholder="Student Name"
-            />
-
-            <button
-                class="btn primary"
-                id="recordEarningBtn"
-            >
-                Record
-            </button>
         </div>
     `;
 
-    document.getElementById("recordEarningBtn").onclick = recordTeacherEarning;
+    loadDashboardStats();
+    loadRecentActivities();
 
+    document.getElementById("openNotifications").onclick = () => {
+        loadNotificationPage();
+    };
 
-    onSnapshot(collection(db, "users"), (snapshot) => {
-        let total = 0, teachers = 0, pending= 0;
+    document.getElementById("openUsersBtn").onclick = () => {
+        document.querySelector('[data-page="users"]').click();
+    };
 
-        snapshot.forEach(doc => {
-            const u = doc.data();
-            total++;
+    document.getElementById("openSubscriptionsBtn").onclick = () => {
+        document.querySelector('[data-page="subscriptions"]').click();
+    };
 
-            if (u.role === "teacher") teachers++;
-            if (u.status === "pending") pending++;
+    document.getElementById("openPaymentsBtn").onclick = () => {
+        document.querySelector('[data-page="payments"]').click();
+    };
+}
+
+function loadDashboardStats() {
+
+    onSnapshot(collection(db, "users"), async (snapshot) => {
+
+        let totalUsers = 0;
+        let teachers = 0;
+        let pending = 0;
+
+        snapshot.forEach(docSnap => {
+
+            const user = docSnap.data();
+
+            totalUsers++;
+
+            if (
+                user.role === "teacher" &&
+                user.status === "active"
+            ) {
+                teachers++;
+            }
+
+            if (
+                user.role === "teacher" &&
+                user.status === "pending"
+            ) {
+                pending++;
+            }
         });
 
-        document.getElementById("totalUsers").textContent = total;
+        document.getElementById("totalUsers").textContent = totalUsers;
+
         document.getElementById("totalTeachers").textContent = teachers;
+
         document.getElementById("pendingTeachers").textContent = pending;
     });
 
-    onSnapshot(collection(db, "notifications"), (snapshot) => {
-        const list = document.getElementById("activityList");
+    onSnapshot(collection(db, "subscriptions"), (snapshot) => {
 
-        if (!list) return;
+        let activeSubscriptions = 0;
+        let revenue = 0;
+
+        snapshot.forEach(docSnap => {
+
+            const sub = docSnap.data();
+
+            if (sub.status === "approved") {
+
+                activeSubscriptions++;
+
+                revenue += Number(sub.amount || 0);
+            }
+        });
+
+        document.getElementById("activeSubscriptions")
+            .textContent = activeSubscriptions;
+
+        document.getElementById("platformRevenue")
+            .textContent =
+            `TZS ${revenue.toLocaleString()}`;
+    });
+
+    onSnapshot(collection(db, "notifications"), (snapshot) => {
+
+        document.getElementById("notifCount")
+            .textContent = snapshot.size;
+    });
+}
+
+function loadRecentActivities() {
+
+    const list = document.getElementById("activityList");
+
+    onSnapshot(collection(db, "notifications"), (snapshot) => {
+
         list.innerHTML = "";
 
-        snapshot.forEach(doc => {
-            const n = doc.data();
+        if (snapshot.empty) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    <span class="material-icons">notifications_off</span>
+                    <h4>No new activity</h4>
+                    <p>System activity will appear here in real time</p>
+                </div>
+            `;
+            return;
+        }
+
+        // convert + sort by latest first
+        const activities = [];
+
+        snapshot.forEach(docSnap => {
+            activities.push({
+                id: docSnap.id,
+                ...docSnap.data()
+            });
+        });
+
+        activities.sort((a, b) => {
+            return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
+        });
+
+        // keep only latest 5
+        const latest = activities.slice(0, 5);
+
+        // header with clear all
+        const header = document.createElement("div");
+        header.className = "activity-header";
+
+        header.innerHTML = `
+            <h3>Recent Activity</h3>
+            <button id="clearActivityBtn" class="clear-btn">
+                Clear All
+            </button>
+        `;
+
+        list.appendChild(header);
+
+        // render items
+        latest.forEach(data => {
 
             const item = document.createElement("div");
-            item.className = "activity-item";
-            item.textContent = n.message;
+            item.className = "activity-card";
+
+            item.innerHTML = `
+                <div class="activity-icon">
+                    <span class="material-icons">notifications</span>
+                </div>
+
+                <div>
+                    <h4>${data.message}</h4>
+                    <small>
+                        ${
+                            data.createdAt?.toDate
+                            ? data.createdAt.toDate().toLocaleString()
+                            : "Just now"
+                        }
+                    </small>
+                </div>
+            `;
 
             list.appendChild(item);
         });
+
+        // clear all handler
+        document.getElementById("clearActivityBtn").onclick = async () => {
+
+            if (!confirm("Clear all activity logs?")) return;
+
+            const allDocs = await getDocs(collection(db, "notifications"));
+
+            const deletes = allDocs.docs.map(d =>
+                deleteDoc(doc(db, "notifications", d.id))
+            );
+
+            await Promise.all(deletes);
+        };
+    });
+}
+
+function loadNotificationPage() {
+
+    const content = document.getElementById("contentArea");
+
+    content.innerHTML = `
+        <div class="notif-page">
+
+            <div class="notif-page-header">
+                <span class="material-icons back-btn" id="backToDashboard">
+                    arrow_back
+                </span>
+
+                <h2>Notifications</h2>
+            </div>
+
+            <div class="notif-filters">
+                <button class="notif-filter active" data-type="all">All</button>
+                <button class="notif-filter" data-type="payment">Payments</button>
+                <button class="notif-filter" data-type="teacher">Teachers</button>
+                <button class="notif-filter" data-type="system">System</button>
+                <button class="notif-filter" data-type="warning">Warnings</button>
+            </div>
+
+            <div id="notifList" class="notif-list"></div>
+
+        </div>
+    `;
+
+    document.getElementById("backToDashboard").onclick = () => {
+        loadPage("dashboard");
+    };
+
+    initNotificationEngine();
+}
+
+let allNotifications = [];
+let activeFilter = "all";
+
+function initNotificationEngine() {
+
+    const list = document.getElementById("notifList");
+
+    onSnapshot(collection(db, "notifications"), (snapshot) => {
+
+        allNotifications = [];
+
+        snapshot.forEach(docSnap => {
+            allNotifications.push({
+                id: docSnap.id,
+                ...docSnap.data()
+            });
+        });
+
+        updateBadge(allNotifications);
+        renderNotifications();
+        setupFilters();
     });
 
-    loadTeachersForEarnings();
+    function renderNotifications() {
+
+        list.innerHTML = "";
+
+        let filtered = allNotifications;
+
+        if (activeFilter !== "all") {
+            filtered = filtered.filter(n => n.type === activeFilter);
+        }
+
+        if (filtered.length === 0) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    <span class="material-icons">notifications_off</span>
+                    <h4>No notifications</h4>
+                    <p>System events will appear here</p>
+                </div>
+            `;
+            return;
+        }
+
+        filtered.sort((a, b) =>
+            (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
+        );
+
+        filtered.forEach(n => {
+
+            const card = document.createElement("div");
+            card.className = `notif-card ${n.type}`;
+
+            card.innerHTML = `
+                <div class="notif-icon">
+                    <span class="material-icons">
+                        ${
+                            n.type === "payment" ? "payments" :
+                            n.type === "teacher" ? "school" :
+                            n.type === "warning" ? "warning" :
+                            "notifications"
+                        }
+                    </span>
+                </div>
+
+                <div class="notif-content">
+                    <h4>${n.message}</h4>
+                    <small>
+                        ${
+                            n.createdAt?.toDate
+                            ? n.createdAt.toDate().toLocaleString()
+                            : "Just now"
+                        }
+                    </small>
+                </div>
+
+                <div class="dot ${n.read ? "read" : "unread"}"></div>
+            `;
+
+            list.appendChild(card);
+        });
+    }
+
+    function setupFilters() {
+
+        document.querySelectorAll(".notif-filter").forEach(btn => {
+
+            btn.onclick = () => {
+
+                document.querySelectorAll(".notif-filter")
+                    .forEach(b => b.classList.remove("active"));
+
+                btn.classList.add("active");
+
+                activeFilter = btn.dataset.type;
+
+                renderNotifications();
+            };
+        });
+    }
+}
+
+function updateBadge(notifications) {
+
+    const badge = document.getElementById("notifCount");
+
+    if (!badge) {
+        // UI not ready or not on dashboard page
+        return;
+    }
+
+    const unread = notifications.filter(n => !n.read).length;
+
+    badge.textContent = unread;
+
+    badge.style.display = unread > 0 ? "flex" : "none";
 }
 
 function loadWithdrawPage() {
@@ -199,317 +571,245 @@ function loadWithdrawPage() {
     renderWithdrawRequests();
 }
 
-async function renderWithdrawRequests() {
-    const container = document.getElementById("adminWithdrawList");
-
-    const q = query(
-        collection(db, "withdrawRequests"),
-        where("status", "==", "pending")
-    );
-
-    const snap = await getDocs(q)
-    
-    container.innerHTML = "";
-
-    snap.forEach(docSnap => {
-            const d = docSnap.data();
-
-            const card = document.createElement("div");
-
-            card.className = "withdraw-card";
-
-            card.innerHTML = `
-                <h3>${d.teacherName}</h3>
-                <p>Amount: TZS ${d.amount.toLocaleString()}</p>
-                <p>Fee: TZS ${d.fee.toLocaleString()}</p>
-                <p>Receive: TZS ${d.receiveAmount.toLocaleString()}</p>
-                <p>Account: ${d.receiverNumber}</p>
-                
-                <div class="actions">
-                    <button class="approve">Approve</button>
-                    <button class="reject">Reject</button>
-                </div>
-            `;
-
-            card.querySelector(".approve").onclick = () => 
-                approveWithdraw(docSnap.id, d);
-
-            card.querySelector(".reject").onclick = () => 
-                rejectWithdraw(docSnap.id, d);
-
-            container.appendChild(card);
-        });
-    }
-
-async function approveWithdraw(requestId) {
-    try {
-
-        const requestRef = doc(
-            db, 
-            "withdrawRequests",
-            requestId
-            );
-
-        const requestSnap = await getDoc(requestRef);
-
-        if (!requestSnap.exists()) {
-            return showToast(
-                "Withdraw request not found",
-                "error"
-            );
-        }
-
-        const request = requestSnap.data();
-
-        if (request.status === "paid") {
-            return showToast(
-                "Request already approved",
-                "warning"
-            );
-        }
-
-        if (request.status === "rejected") {
-            return showToast(
-                "Rejected requests cannot be approved",
-                "error"
-            );
-        }
-
-        await updateDoc(requestRef, {
-            status: "paid",
-            paidAt: serverTimestamp(),
-        });
-
-        showToast("withdrawal approved successfully");
-
-    } catch (err) {
-        console.error(err);
-        showToast("Something went wrong while approving withdrawal", "error");
-    }
-    markAsPaid();
-}
-
-async function rejectWithdraw(id) {
-    await updateDoc(doc(db, "withdrawRequests", id), {
-        status: "rejected",
-        processedAt: serverTimestamp()
-    });
-    showToast("withdrawal declined", "error");
-}
-
-async function markAsPaid(id) {
-    await updateDoc(doc(db, "withdrawRequests", id), {
-        status: "paid",
-        processedAt: serverTimestamp()
-    });
-}
-
 function loadSubscriptionsPage() {
-    contentArea.innerHTML = `
-        <h3>Subscription Verification</h3>
-        
-        <div class="card">
-            <h4>Pending Payments</h4>
-            <div id="subscriptionList"></div>
+
+    const content = document.getElementById("contentArea");
+
+    content.innerHTML = `
+        <div class="subs-page">
+
+            <div class="subs-header">
+                <h2>Teacher Subscriptions</h2>
+                <p>Manage trials, payments & access control</p>
+            </div>
+
+            <div id="subsList" class="subs-list"></div>
+
         </div>
     `;
 
-    loadPendingSubscriptions();
+    listenTeacherSubscriptions();
 }
 
-async function loadPendingSubscriptions() {
-    const container = document.getElementById("subscriptionList");
+function listenTeacherSubscriptions() {
+
+    const list = document.getElementById("subsList");
+
+    onSnapshot(query(collection(db, "users"), where("role", "==", "teacher")), (snapshot) => {
+
+        list.innerHTML = "";
+
+        if (snapshot.empty) {
+            list.innerHTML = `
+                <div class="empty-state">
+                    <span class="material-icons">school</span>
+                    <h3>No Teachers Found</h3>
+                    <p>Teachers will appear here once they register</p>
+                </div>
+            `;
+            return;
+        }
+
+        snapshot.forEach(docSnap => {
+
+            const t = docSnap.data();
+            const teacherId = docSnap.id;
+
+            const status = getTeacherStatus(t);
+
+            const card = document.createElement("div");
+            card.className = "teacher-sub-card";
+
+            card.innerHTML = `
+                <div class="teacher-top">
+
+                    <img src="${t.photoURL || 'default.jpeg'}" class="avatar"/>
+
+                    <div>
+                        <h3>${t.username || "Teacher"}</h3>
+                        <p>${t.username || "No payment name"}</p>
+                        <small>${t.number || "No number"}</small>
+                    </div>
+
+                    <span class="status ${status.class}">
+                        ${status.label}
+                    </span>
+
+                </div>
+
+                <div class="teacher-meta">
+                    <p><b>Subscription:</b> ${t.subscriptionStatus || "trial"}</p>
+                    <p><b>Ends:</b> ${formatDate(t.subscriptionEnd)}</p>
+                </div>
+
+                <div class="teacher-actions">
+
+                    ${
+                        t.status === "pending"
+                        ? `<button class="approve">Approve Payment</button>`
+                        : ""
+                    }
+
+                    ${
+                        t.status === "active"
+                        ? `<button class="suspend">Suspend</button>`
+                        : ""
+                    }
+
+                    ${
+                        t.status === "suspended"
+                        ? `<button class="reactivate">Reactivate</button>`
+                        : ""
+                    }
+
+                    <button class="history">View History</button>
+
+                </div>
+            `;
+
+            // ACTIONS
+            const approveBtn = card.querySelector(".approve");
+            const suspendBtn = card.querySelector(".suspend");
+            const reactivateBtn = card.querySelector(".reactivate");
+            const historyBtn = card.querySelector(".history");
+
+            if (approveBtn) {
+                approveBtn.onclick = async () => {
+                    await updateDoc(doc(db, "users", teacherId), {
+
+                        status: "active",
+                        subscriptionStatus: "active",
+
+                        subscriptionStart: Timestamp.now(),
+
+                        subscriptionEnd: Timestamp.fromDate(
+                            new Date(
+                                Date.now() + 30 * 24 * 60 * 60 * 1000
+                            )
+                        )
+                    });
+                };
+            }
+
+            if (suspendBtn) {
+                suspendBtn.onclick = async () => {
+                    await updateDoc(doc(db, "users", teacherId), {
+                        status: "suspended"
+                    });
+                };
+            }
+
+            if (reactivateBtn) {
+                reactivateBtn.onclick = async () => {
+                    await updateDoc(doc(db, "users", teacherId), {
+                        status: "active"
+                    });
+                };
+            }
+
+            if (historyBtn) {
+                historyBtn.onclick = () => {
+                    loadTeacherSubscriptionHistory(teacherId);
+                };
+            }
+
+            list.appendChild(card);
+        });
+    });
+}
+
+function getTeacherStatus(t) {
+
+    if (t.status === "suspended") {
+        return { label: "Suspended", class: "danger" };
+    }
+
+    if (t.subscriptionStatus === "trial") {
+        return { label: "Free Trial", class: "warning" };
+    }
+
+    if (t.subscriptionStatus === "active") {
+        return { label: "Subscribed", class: "success" };
+    }
+
+    if (t.subscriptionStatus === "ended") {
+        return { label: "Ended", class: "danger" };
+    }
+
+    return { label: "Unknown", class: "gray" };
+}
+
+async function loadTeacherSubscriptionHistory(teacherId) {
+
+    const content = document.getElementById("contentArea");
 
     const q = query(
-        collection(db, "subscriptions"),
-        where("status", "==", "pending")
+        collection(db, "teacherSubscriptions"),
+        where("teacherId", "==", teacherId)
     );
 
     const snap = await getDocs(q);
 
-    container.innerHTML = "";
+    content.innerHTML = `
+        <div class="history-page">
 
-    if (snap.empty) {
-        container.innerHTML = `<p>No pending requests</p>`;
-        return;
-    }
-
-    snap.forEach(docSnap => {
-        const sub = docSnap.data();
-
-        const card = document.createElement("div");
-        card.className = "subscription-card";
-
-        card.innerHTML = `
-            <p><strong>User ID:</strong> ${sub.userId}</p>
-            <p><strong>Plan:</strong> ${sub.planName}</p>
-            <p><strong>Reference:</strong> ${sub.paymentCode || "N/A"}</p>
-            
-            <div class="actions">
-                <button class="btn approve">Approve</button>
-                <button class="btn reject">Reject</button>
+            <div class="history-header">
+                <span class="material-icons back-btn">arrow_back</span>
+                <h2>Subscription History</h2>
             </div>
+
+            <div class="history-list"></div>
+        </div>
+    `;
+
+    document.querySelector(".back-btn").onclick = () => {
+        loadSubscriptionsPage();
+    };
+
+    const list = document.querySelector(".history-list");
+
+    snap.forEach(doc => {
+
+        const h = doc.data();
+
+        const item = document.createElement("div");
+        item.className = "history-item";
+
+        item.innerHTML = `
+            <p><b>Plan:</b> ${h.plan}</p>
+            <p><b>Status:</b> ${h.status}</p>
+            <p><b>Amount:</b> ${h.amount}</p>
         `;
 
-        const [approveBtn, rejectBtn] = card.querySelectorAll("button");
-
-        approveBtn.onclick = () => approveSubscription(docSnap.id, sub);
-        rejectBtn.onclick = () => rejectSubscription(docSnap.id, sub);
-
-        container.appendChild(card);
+        list.appendChild(item);
     });
 }
 
-async function approveSubscription(id, sub) {
-    const now = new Date();
+function formatDate(timestamp) {
 
-    let durationDays = 0;
-    let classLimit = 0;
-    let downloadLimit = 0;
+    if (!timestamp) return "Not set";
 
-    if (sub.planId === "plan_2weeks") {
-        durationDays = 14;
-        classLimit = 2;
-        downloadLimit = 5;
-    } 
-    if (sub.planId === "plan_1month") {
-        durationDays = 30; 
-        classLimit = -1;
-        downloadLimit = -1;
-    } 
-
-    const expiry = new Date();
-    expiry.setDate(expiry.getDate() + durationDays);
-
-    await updateDoc(doc(db, "users", sub.userId), {
-
-            subscriptionPlan: sub.planName,
-            subscriptionPlanId: sub.planId,
-            classLimit,
-            downloadLimit,
-            downloadUsed: 0,
-            subscriptionStatus: "active",
-            subscriptionStart: Timestamp.fromDate(now),
-            subscriptionEnd: Timestamp.fromDate(expiry),
-            hasActiveSubscription: true
-    });
-
-    await updateDoc(doc(db, "subscriptions", id), {
-        status: "approved",
-        approvedAt: serverTimestamp(),
-        startDate: Timestamp.fromDate(now),
-        endDate: Timestamp.fromDate(expiry)
-    });
-    
-    showToast("Subscription Approved");
-
-    loadPendingSubscriptions();
-}
-
-async function rejectSubscription(id) {
-    await updateDoc(doc(db, "subscriptions", id), {
-        status: "rejected"
-    });
-
-    showToast(
-        "Subscription Rejected",
-        "error"
-    );
-
-    loadPendingSubscriptions();
-}
-
-async function activateFreeTrials() {
-    
-    const usersSnap = await getDocs(collection(db, "users"));
-
-    const now = new Date();
-
-    for (const userDoc of usersSnap.docs) {
-
-        const user = userDoc.data();
-
-        if (user.role !== "student") continue;
-
-        if (user.subscriptionStatus === "active") continue;
-
-        const endDate = new Date();
-        endDate.setDate(endDate.getDate() + 7);
-
-        await updateDoc(doc(db, "users", userDoc.id), { 
-                subscriptionPlan: "Free Trial",
-                subscriptionPlanId: "free_trial",
-                subscriptionStatus: "active",
-                classLimit: -1,
-                downloadLimit: -1,
-                downloadUsed: 0,
-                subscriptionStart: Timestamp.fromDate(now),
-                subscriptionEnd: Timestamp.fromDate(endDate),
-                hasActiveSubscription: true
+    // Firestore Timestamp support
+    if (timestamp.toDate) {
+        const date = timestamp.toDate();
+        return date.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric"
         });
     }
 
-    alert("Free trials activated!");
+    // Normal JS date fallback
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return "Invalid date";
+
+    return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric"
+    });
 }
 
-async function loadTeachersForEarnings() {
-    const select = document.getElementById("earningTeacher");
-    const snap = await getDocs(query(
-        collection(db, "users"),
-        where("role", "==", "teacher")
-    )
-);
-
-snap.forEach(docSnap => {
-    const teacher = docSnap.data();
-    const option = document.createElement("option");
-
-    option.value = docSnap.id;
-
-    option.textContent = teacher.username || teacher.email;
-
-    select.appendChild(option);
-});
-}
-
-async function recordTeacherEarning() {
-    const teacherId = document.getElementById("earningTeacher").value;
-
-    const teacherName = document.getElementById("earningTeacher")
-        .selectedOptions[0]
-        .textContent;
-
-    const amount =
-        Number(
-            document.getElementById("earningAmount").value
-        );
-
-    const studentName = document.getElementById("earningStudent").value;
-
-    const plan = document.getElementById("earningPlan").value;
-
-    if (!teacherId || !amount) {
-        return showToast(
-            "Complete all fields",
-            "warning"
-        );
-    }
-
-    await addDoc(
-        collection(db, "teacherEarnings"),
-        {
-            teacherId,
-            teacherName,
-            studentName,
-            subscriptionPlan: plan,
-            amount,
-            recordedAt: serverTimestamp()
-        }
-    );
-
-    showToast("earning recorded");
-
-}
 
 function showToast(message, type = "success") {
     const old = 
@@ -554,4 +854,53 @@ function showToast(message, type = "success") {
     }, 3000)
 }
 
+async function activateTeacherFreeTrials() {
+
+    const teachersSnap = await getDocs(
+        query(
+            collection(db, "users"),
+            where("role", "==", "teacher")
+        )
+    );
+
+    const now = new Date();
+
+    for (const teacherDoc of teachersSnap.docs) {
+
+        const teacher = teacherDoc.data();
+
+        // skip already subscribed users
+        if (
+            teacher.subscriptionStatus === "active"
+        ) continue;
+
+        const endDate = new Date();
+
+        endDate.setDate(
+            endDate.getDate() + 7
+        );
+
+        await updateDoc(
+            doc(db, "users", teacherDoc.id),
+            {
+                subscriptionPlan: "Free Access",
+                subscriptionPlanId: "free_access",
+
+                subscriptionStatus: "active",
+
+                accountAccess: "active",
+
+                subscriptionStart:
+                    Timestamp.fromDate(now),
+
+                subscriptionEnd:
+                    Timestamp.fromDate(endDate),
+
+                hasActiveSubscription: true
+            }
+        );
+    }
+
+    showToast("Free access activated");
+}
 loadPage("dashboard");

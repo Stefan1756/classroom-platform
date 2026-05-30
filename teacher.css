@@ -1890,3 +1890,166 @@ select {
 
     cursor: pointer;
 }
+
+.subscription-page{
+    padding:16px;
+    padding-bottom:100px;
+}
+
+.sub-header h2{
+    font-size:24px;
+    margin-bottom:5px;
+}
+
+.sub-header p{
+    color:#777;
+}
+
+.current-plan-card{
+    background:#111;
+    color:#fff;
+    padding:20px;
+    border-radius:24px;
+    margin-top:20px;
+}
+
+.plan-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.plan-status{
+    padding:6px 12px;
+    border-radius:20px;
+    font-size:12px;
+    text-transform:capitalize;
+}
+
+.plan-status.active{
+    background:#1b5e20;
+}
+
+.plan-status.trial{
+    background:#ef6c00;
+}
+
+.plan-status.pending{
+    background:#1565c0;
+}
+
+.progress-bar{
+    height:8px;
+    background:#333;
+    border-radius:20px;
+    margin-top:15px;
+    overflow:hidden;
+}
+
+.progress-fill{
+    width:70%;
+    height:100%;
+    background:#4caf50;
+}
+
+.plans-grid{
+    display:grid;
+    gap:15px;
+    margin-top:15px;
+}
+
+.plan-card{
+    border:1px solid #eee;
+    border-radius:20px;
+    padding:20px;
+    background:#fff;
+    position:relative;
+}
+
+.plan-card.selected{
+    border:2px solid #111;
+}
+
+.plan-card ul{
+    padding-left:18px;
+    color:#666;
+}
+
+.popular-badge{
+    position:absolute;
+    top:10px;
+    right:10px;
+    background:#111;
+    color:#fff;
+    padding:5px 10px;
+    border-radius:20px;
+    font-size:11px;
+}
+
+.select-plan-btn,
+#submitSubscriptionBtn{
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:14px;
+    background:#111;
+    color:#fff;
+    margin-top:15px;
+    cursor:pointer;
+}
+
+.payment-box{
+    background:#fff;
+    border:1px solid #eee;
+    border-radius:20px;
+    padding:16px;
+    margin-top:15px;
+}
+
+.payment-box input{
+    width:100%;
+    margin-top:12px;
+    padding:14px;
+    border-radius:12px;
+    border:1px solid #ddd;
+}
+
+.payment-number-card{
+    display:flex;
+    gap:12px;
+    align-items:center;
+    margin-bottom:15px;
+}
+
+.billing-history{
+    margin-top:25px;
+}
+
+.billing-item{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:14px 0;
+    border-bottom:1px solid #eee;
+}
+
+.billing-status{
+    padding:4px 10px;
+    border-radius:20px;
+    font-size:12px;
+}
+
+.billing-status.pending{
+    background:#fff3e0;
+    color:#ef6c00;
+}
+
+.billing-status.approved{
+    background:#e8f5e9;
+    color:#2e7d32;
+}
+
+.billing-status.rejected{
+    background:#ffebee;
+    color:#c62828;
+}

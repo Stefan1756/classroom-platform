@@ -1,6 +1,14 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import {
+    getFirestore,
+    doc,
+    setDoc,
+    addDoc,
+    collection,
+    serverTimestamp,
+    Timestamp
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDq_02L2kHPr5jgjblWk_Vrs_JcRrjSBdA",
@@ -35,7 +43,7 @@ document.getElementById("signupBtn").addEventListener("click", async () => {
         }
 
         if (role === "teacher") {
-            status = "pending";
+            status = "active";
         }
 
         if (!accepted) {
@@ -45,13 +53,48 @@ document.getElementById("signupBtn").addEventListener("click", async () => {
             );
             return;
         }
+        
+    const now = new Date();
 
-        await setDoc(doc(db, "users", user.uid), {
-            username,
-            email,
-            role,
-            status,
-            createdAt: serverTimestamp()
+    const freeEnd = new Date();
+
+    freeEnd.setDate(freeEnd.getDate() + 7);
+
+    await setDoc(doc(db, "users", user.uid), {
+        username,
+        email,
+        role,
+        status,
+
+        createdAt: serverTimestamp(),
+
+        subscriptionPlan: role === "teacher"
+            ? "Free Access"
+            : null,
+
+        subscriptionPlanId: role === "teacher"
+            ? "free_access"
+            : null,
+
+        subscriptionStatus: role === "teacher"
+            ? "active"
+            : null,
+
+        accountAccess: role === "teacher"
+            ? "active"
+            : null,
+
+        subscriptionStart: role === "teacher"
+            ? Timestamp.fromDate(now)
+            : null,
+
+        subscriptionEnd: role === "teacher"
+            ? Timestamp.fromDate(freeEnd)
+            : null,
+
+        hasActiveSubscription: role === "teacher"
+            ? true
+            : false
         });
 
         let message = "New student registered";

@@ -1,14 +1,10 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
-
 import { 
     getStorage,
     ref,
     uploadBytes,
     getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-
 import { 
     getFirestore,
     onSnapshot,
@@ -22,8 +18,6 @@ import {
     getDoc,
     updateDoc,
     doc} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-import { goBack, navigate } from "./core/router.js";
 import { getUser, getUserData } from "./core/auth.js";
 
 const firebaseConfig = {
@@ -43,6 +37,49 @@ const storage = getStorage(app);
 
 const navItems = document.querySelectorAll(".nav-item");
 const contentArea = document.getElementById("contentArea");
+
+
+async function checkTeacherSubscriptionAccess() {
+    const user = auth.currentUser;
+
+    if (!user) return false;
+
+    const userRef = doc(db, "users", user.uid);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) return false;
+
+    const data = userSnap.data();
+
+    const now = new Date();
+
+    let expired = false;
+
+    if (data.subscriptionEnd?.toDate) {
+        expired = data.subscriptionEnd.toDate() < now;
+    }
+
+    // FREE ACCESS EXPIRED
+    if (
+        data.subscriptionStatus !== "active" ||
+        expired
+    ) {
+
+        await updateDoc(userRef, {
+            subscriptionStatus: "expired",
+            accountAccess: "restricted"
+        });
+
+        return false;
+    }
+
+    // ACTIVE ACCESS
+    await updateDoc(userRef, {
+        accountAccess: "active"
+    });
+
+    return true;
+}
 
 function loadPage(page) {
     contentArea.innerHTML = "";
@@ -133,106 +170,14 @@ function loadPage(page) {
         initProfileData();
     }
 
-    if (page === "wallet") {
-        contentArea.innerHTML = `
-        <div class="wallet-page">
-        
-            <div class="wallet-hero">
-             
-                <div class="wallet-balance-card">
-                
-                    <div class="wallet-balance-top">
-                    
-                        <div>
-                            <p>Available Balance</p>
-                            <h1 id="walletBalance">
-                                TZS 0
-                            </h1>
-                        </div>
-                        
-                        <div class="wallet-main-icon">
-                            <span class="material-icons">account_balance_wallet</span>
-                        </div>
-                    
-                    </div>
-                    
-                    <div class="wallet-balance-footer">
-                    
-                        <div>
-                            <small>Pending</small>
-                            <strong id="pendingBalance">
-                                TZS 0
-                            </strong>
-                        </div>
-                        
-                        <div>
-                            <small>Withdrawn</small>
-                            <strong id="withdrawnBalance">
-                                TZS 0
-                            </strong>
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-            
-            <div class="wallet-actions">
-                
-                <button class="wallet-action-btn" id="openWithdrawBtn">
-                
-                    <span class="material-icons">
-                        south_west
-                    </span>
-
-                    Withdraw
-                
-                </button> 
-
-                
-                
-                <button class="wallet-action-btn" id="openHistoryBtn">
-                
-                    <span class="material-icons">
-                        receipt_long
-                    </span>
-
-                    History
-                
-                </button>
-                
-            </div>
-            
-            <div class="wallet-section">
-            
-                <div class="wallet-section-header">
-                
-                    <h3>Recent Earnings</h3>
-                    
-                    <span class="material-icons">
-                        trending_up
-                    </span>
-                    
-                </div>
-                
-                <div id="teacherEarningsList"></div>
-                
-            </div>
-
-        </div>
-    `;
-    loadWalletOverview();
-    
-    document.getElementById("openWithdrawBtn").onclick = () => {
-        loadWithdrawPage();
-    }
-
-    document.getElementById("openHistoryBtn").onclick = () => {
-        loadHistoryPage();
-    }
+    if (page === "subscription") {
+        initDashboard();
+        onAuthStateChanged(auth, (user) => {
+            if (user) loadSubscriptionPage(user);
+        });
     }
 }
+
 
 function renderProfileSkeleton() {
     return `
@@ -2368,12 +2313,32 @@ function updateChart(students, engagement) {
 
 
 navItems.forEach(item => {
-    item.addEventListener("click", () => {
-
-        navItems.forEach(i => i.classList.remove("active"));
-        item.classList.add("active");
+    item.addEventListener("click", async () => {
 
         const page = item.dataset.page;
+
+        const hasAccess =
+            await checkTeacherSubscriptionAccess();
+
+        // allow subscription page always
+        if (!hasAccess && page !== "subscription") {
+
+            showToast(
+                "Your subscription has expired",
+                "error"
+            );
+
+            loadPage("subscription");
+
+            return;
+        }
+
+        navItems.forEach(nav =>
+            nav.classList.remove("active")
+        );
+
+        item.classList.add("active");
+
         loadPage(page);
     });
 });
@@ -3055,4 +3020,348 @@ function renderPagination(total, perPage, page) {
     }
 }
 
-loadPage("dashboard");
+async function loadSubscriptionPage() {
+    const content = document.getElementById("contentArea");
+
+    const user = auth.currentUser;
+
+    const userSnap = await getDoc(doc(db, "users", user.uid));
+    const teacher = userSnap.data();
+
+    content.innerHTML = `
+        <div class="subscription-page">
+
+            <div class="sub-header">
+                <h2>Subscription & Billing</h2>
+                <p>
+                    Manage your teaching subscription
+                </p>
+            </div>
+
+            <div class="current-plan-card">
+
+                <div class="plan-top">
+
+                    <div>
+                        <h3>
+                            ${
+                                teacher.subscriptionStatus === "active"
+                                ? "Premium Plan"
+
+                                : teacher.subscriptionStatus === "trial"
+                                ? "Free Trial"
+
+                                : "No Active Plan"
+                            }
+                        </h3>
+
+                        <p>
+                            ${
+                                teacher.subscriptionStatus === "active"
+                                ? "Subscription active"
+
+                                : teacher.subscriptionStatus === "trial"
+                                ? "Trial running"
+
+                                : "Subscription required"
+                            }
+                        </p>
+                    </div>
+
+                    <span class="plan-status 
+                        ${teacher.subscriptionStatus}">
+                        ${teacher.subscriptionStatus || "inactive"}
+                    </span>
+
+                </div>
+
+                <div class="plan-progress">
+
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+
+                    <small>
+                        Ends:
+                        ${formatDate(teacher.subscriptionEnd)}
+                    </small>
+
+                </div>
+
+            </div>
+
+            <div class="plans-section">
+
+                <h3>Choose Plan</h3>
+
+                <div class="plans-grid">
+
+                    <div class="plan-card">
+                        <h4>Starter</h4>
+                        <h2>TZS 30,000</h2>
+                        <p>30 Days Access</p>
+
+                        <ul>
+                            <li>Unlimited Classes</li>
+                            <li>Unlimited Uploads</li>
+                            <li>Student Management</li>
+                        </ul>
+
+                        <button class="select-plan-btn"
+                            data-plan="starter"
+                            data-price="30000">
+                            Select Plan
+                        </button>
+                    </div>
+
+                    <div class="plan-card premium">
+                        <div class="popular-badge">
+                            Most Popular
+                        </div>
+
+                        <h4>Professional</h4>
+                        <h2>TZS 70,000</h2>
+                        <p>90 Days Access</p>
+
+                        <ul>
+                            <li>Everything in Starter</li>
+                            <li>Premium Visibility</li>
+                            <li>Priority Support</li>
+                        </ul>
+
+                        <button class="select-plan-btn"
+                            data-plan="professional"
+                            data-price="70000">
+                            Select Plan
+                        </button>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="payment-section">
+
+                <h3>Complete Payment</h3>
+
+                <div class="payment-box">
+
+                    <div class="payment-number-card">
+                        <span class="material-icons">
+                            account_balance_wallet
+                        </span>
+
+                        <div>
+                            <h4>Send Payment To</h4>
+                            <p>TuityHub Payments</p>
+                            <strong>0617397356</strong>
+                        </div>
+                    </div>
+
+                    <input type="text"
+                        id="paymentName"
+                        placeholder="Sender Full Name">
+
+                    <input type="text"
+                        id="paymentNumber"
+                        placeholder="Sender Phone Number">
+
+                    <input type="text"
+                        id="paymentReference"
+                        placeholder="Transaction Reference">
+
+                    <button id="submitSubscriptionBtn">
+                        Submit Payment
+                    </button>
+
+                </div>
+
+            </div>
+
+            <div class="billing-history">
+
+                <div class="section-top">
+                    <h3>Billing History</h3>
+                </div>
+
+                <div id="billingHistoryList"></div>
+
+            </div>
+
+        </div>
+    `;
+
+    setupPlanSelection();
+    setupSubscriptionSubmission();
+    loadBillingHistory();
+}
+
+function formatDate(timestamp) {
+
+    if (!timestamp) return "Not set";
+
+    // Firestore Timestamp support
+    if (timestamp.toDate) {
+        const date = timestamp.toDate();
+        return date.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric"
+        });
+    }
+
+    // Normal JS date fallback
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return "Invalid date";
+
+    return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric"
+    });
+}
+
+let selectedPlan = null;
+let selectedPrice = null;
+
+function setupPlanSelection() {
+
+    document.querySelectorAll(".select-plan-btn")
+    .forEach(btn => {
+
+        btn.onclick = () => {
+
+            document.querySelectorAll(".plan-card")
+            .forEach(c => c.classList.remove("selected"));
+
+            btn.closest(".plan-card")
+            .classList.add("selected");
+
+            selectedPlan = btn.dataset.plan;
+            selectedPrice = btn.dataset.price;
+        };
+    });
+}
+
+async function setupSubscriptionSubmission() {
+
+    document.getElementById("submitSubscriptionBtn")
+    .onclick = async () => {
+
+        if (!selectedPlan) {
+            return showToast(
+                "Select subscription plan",
+                "warning"
+            );
+        }
+
+        const user = auth.currentUser;
+
+        const paymentName =
+            document.getElementById("paymentName").value;
+
+        const paymentNumber =
+            document.getElementById("paymentNumber").value;
+
+        const paymentReference =
+            document.getElementById("paymentReference").value;
+
+        await addDoc(
+            collection(db, "teacherSubscriptions"),
+            {
+                teacherId: user.uid,
+                plan: selectedPlan,
+                amount: Number(selectedPrice),
+                paymentName,
+                paymentNumber,
+                paymentReference,
+                status: "pending",
+                createdAt: serverTimestamp()
+            }
+        );
+
+        await updateDoc(doc(db, "users", user.uid), {
+            subscriptionStatus: "pending"
+        });
+
+        showToast(
+            "Payment submitted successfully"
+        );
+    };
+}
+
+async function loadBillingHistory() {
+
+    const user = auth.currentUser;
+
+    const list = document.getElementById("billingHistoryList");
+
+    const q = query(
+        collection(db, "teacherSubscriptions"),
+        where("teacherId", "==", user.uid)
+    );
+
+    onSnapshot(q, (snapshot) => {
+
+        list.innerHTML = "";
+
+        if (snapshot.empty) {
+
+            list.innerHTML = `
+                <div class="empty-state">
+                    <span class="material-icons">
+                        receipt_long
+                    </span>
+
+                    <p>No billing history yet</p>
+                </div>
+            `;
+
+            return;
+        }
+
+        snapshot.forEach(docSnap => {
+
+            const sub = docSnap.data();
+
+            const item = document.createElement("div");
+
+            item.className = "billing-item";
+
+            item.innerHTML = `
+                <div>
+                    <h4>${sub.plan}</h4>
+                    <p>
+                        ${formatDate(sub.createdAt)}
+                    </p>
+                </div>
+
+                <div class="billing-right">
+                    <strong>
+                        TZS ${sub.amount}
+                    </strong>
+
+                    <span class="billing-status ${sub.status}">
+                        ${sub.status}
+                    </span>
+                </div>
+            `;
+
+            list.appendChild(item);
+        });
+    });
+}
+
+(async () => {
+
+    const hasAccess =
+        await checkTeacherSubscriptionAccess();
+
+    if (!hasAccess) {
+        loadPage("subscription");
+        return;
+    }
+
+    loadPage("subscription");
+
+})();
