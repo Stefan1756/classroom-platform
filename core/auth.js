@@ -1,6 +1,6 @@
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { doc, getDoc, setDoc, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { doc, getDoc, setDoc, updateDoc, Timestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 let currentUser = null;
 let currentUserData = null;
@@ -43,4 +43,16 @@ export function getUserData() {
 export function logoutUser() {
   auth.signOut();
   window.location.href = "index.html";
+}
+
+export function getAuthUser(auth) {
+    return new Promise((resolve, reject) => {
+
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            unsubscribe();
+
+            if (user) resolve(user);
+            else reject("NO_USER");
+        });
+    });
 }

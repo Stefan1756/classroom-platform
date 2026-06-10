@@ -179,6 +179,13 @@ export function loadProfile() {
 
                 </div>
             </div>
+
+            <div class="profile-section">
+                <h4>Install App</h4>
+                <button id="installBtn" class="install-btn hidden">
+                    <span class="material-icons">download</span>
+                    Install TuityHub
+                </button>
             
             <div class="logout-wrap">
                 <button id="logoutBtn"

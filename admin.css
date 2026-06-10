@@ -82,6 +82,7 @@ body {
 }
 
 .users-list {
+    padding: 16px;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -890,9 +891,60 @@ input {
     background:#fff5f5;
 }
 
+.subs-stats {
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    gap: 12px;
+    margin: 20px 0;
+}
+
+#backBtn {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.2);
+    color: #121212;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+}
+
+.empty-state {
+    margin-top: 80px;
+    text-align: center;
+    padding: 40px 20px;
+    color: #555;
+}
+
+.empty-state .material-icons {
+    font-size: 60px;
+    color: #bbb;
+    margin-bottom: 10px;
+}
+
+.empty-state p {
+    font-size: 18px;
+    margin-bottom: 6px;
+    color: #222;
+}
+
+.stat-card {
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 16px;
+    padding: 18px;
+    text-align: center;
+}
+
+.stat-card h3 {
+    text-align: center;
+    font-size: 22px;
+}
+
 .subs-page, .history-page{
     padding:16px;
-    height: 100vh;
+    height: 100%;
+    padding-bottom: 220px;
 }
 
 .subs-header{
@@ -906,54 +958,165 @@ input {
 }
 
 .teacher-sub-card{
-    border:1px solid #eee;
-    border-radius:14px;
-    padding:12px;
     background:#fff;
+    border: 1px solid #eee;
+    border-radius: 18px;
+    padding: 16px;
+    margin-bottom: 14px;
 }
 
-.teacher-top{
+.teacher-sub-top{
     display:flex;
+    justify-content: space-between;
     align-items:center;
-    gap:12px;
 }
 
-.teacher-top .avatar{
-    width:45px;
-    height:45px;
-    border-radius:50%;
+.teacher-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
-.status{
-    margin-left:auto;
-    padding:4px 10px;
-    border-radius:20px;
-    font-size:12px;
+.teacher-avatar{
+    width:100px;
+    height:100px;
+    border-radius: 5px;
 }
 
-.status.success{ background:#e8f5e9; color:#2e7d32; }
-.status.warning{ background:#fff3e0; color:#ef6c00; }
-.status.danger{ background:#ffebee; color:#c62828; }
+.teacher-sub-details {
+    display: flex;
+    justify-content: space-between;
+    margin: 16px 0;
+    padding-top: 12px;
+    border-top: 1px solid #f0f0f0;
+}
 
-.teacher-actions{
+.subs-status.active{ 
+    background:#e8f5e9; 
+    color:#2e7d32;
+    padding: 6px 12px;
+    border-radius: 20px;
+}
+
+.subs-tatus.pendinf{ 
+    background:#fff3e0;
+    color:#ef6c00;
+    padding: 6px 12px;
+    border-radius: 20px;
+}
+.subs-status.expired{ 
+    background:#ffebee; 
+    color:#c62828;
+    padding: 6px 12px;
+    border-radius: 20px;
+}
+
+.teacher-sub-actions{
     display:flex;
-    gap:8px;
-    margin-top:10px;
+    gap:10px;
 }
 
-.teacher-actions button{
+.teacher-sub-actions button{
     flex:1;
-    padding:8px;
+    height: 44px;
     border:none;
-    border-radius:10px;
+    border-radius:12px;
+    font-weight: 600;
     cursor:pointer;
+    font-family: 'Poppins';
 }
 
-.teacher-actions .approve{ background:#4caf50; color:#fff; }
-.teacher-actions .suspend{ background:#ff9800; color:#fff; }
-.teacher-actions .reactivate{ background:#2196f3; color:#fff; }
+.suspend-btn{
+    background:#fff3e0; 
+    color:#ef6c00; 
+}
 
-.history-item{
-    border-bottom:1px solid #eee;
-    padding:10px 0;
+.activate-btn{ 
+    background:#e8f5e9; 
+    color:#2e7d32;
+}
+
+.history-btn{
+    background: #f5f7fb;
+}
+
+.payments-page{
+    padding: 16px;
+    padding-bottom: 140px;
+}
+
+.payments-header h2{
+    margin-bottom: 4px;
+}
+
+.payments-stats{
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    gap: 10px;
+    margin: 15px 0;
+}
+
+.stat {
+    background: #fff;
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    align-items: center;
+    border: 1px solid #eee;
+    border-radius: 14px;
+    padding: 12px;
+    text-align: center;
+}
+
+.stat h3 {
+    font-size: 18px;
+}
+
+.payments-tabs{
+    display: flex;
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.tab {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 10px;
+    background: #f5f7fb;
+    cursor: pointer;
+}
+
+.tab.active {
+    background: #111;
+    color: #fff;
+}
+
+.payment-card {
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 16px;
+    padding: 14px;
+    margin-bottom: 12px;
+}
+
+.payment-top {
+    display: flex;
+    justify-content: space-between;
+}
+
+.amount {
+    font-weight: 700;
+    color: #111;
+}
+
+.payment-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+}
+
+.reject-btn{
+    background: #ffebee;
+    color: #c62828;
 }

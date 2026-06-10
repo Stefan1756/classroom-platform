@@ -17,7 +17,7 @@ import {
     doc} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 import { loadUsers, initUserControls } from "./admin-users.js";
-import { getUser } from "./core/auth.js";
+
 
 const firebaseConfig = {
   apiKey: "AIzaSyDq_02L2kHPr5jgjblWk_Vrs_JcRrjSBdA",
@@ -71,7 +71,7 @@ function loadPage(page) {
     }
 
     if (page === "payments") {
-        loadWithdrawPage();
+        loadPaymentsPage();
     }
 }
 
@@ -558,17 +558,152 @@ function updateBadge(notifications) {
     badge.style.display = unread > 0 ? "flex" : "none";
 }
 
-function loadWithdrawPage() {
-    contentArea.innerHTML = `
-        <h3>Withdraws Verification</h3>
-        
-        <div class="card">
-            <h4>Pending Payouts</h4>
-            <div id="adminWithdrawList"></div>
+function loadPaymentsPage() {
+    const content = document.getElementById("contentArea");
+
+    content.innerHTML = `
+        <div class="payments-page">
+            <div class="payments-header">
+                <h2>Payments Center</h2>
+                <p>Approve teacher subscriptions and manage transactions</p>
+            </div>
+
+            <div class="payments-stats">
+                <div class="stat">
+                    <h3 id="pendingCount">0</h3>
+                    <p>Pending</p>
+                </div>
+
+                <div class="stat">
+                    <h3 id="approvedCount">0</h3>
+                    <p>Approved</p>
+                </div>
+
+                <div class="stat">
+                    <h3 id="rejectedCount">0</h3>
+                    <p>Rejected</p>
+                </div>
+            </div>
+
+            <div class="payments-tabs">
+                <button class="tab active" data-tab="pending">
+                    Pending
+                </button>
+
+                <button class="tab active" data-tab="approved">
+                    Approved
+                </button>
+
+                <button class="tab active" data-tab="rejected">
+                    Rejected
+                </button>
+            </div>
+
+            <div id="paymentsList" class="payments-list"></div>
         </div>
     `;
+    setupPaymentTabs();
+    loadPaymentsRequests("pending");
+}
 
-    renderWithdrawRequests();
+function setupPaymentTabs() {
+    document.querySelectorAll(".tab").forEach(tab => {
+        tab.onclick = () => {
+            document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+            tab.classList.add("active");
+            loadPaymentsRequests(tab.dataset.tab);
+        };
+    });
+}
+
+async function loadPaymentsRequests(status) {
+    const container = document.getElementById("paymentsList");
+
+    const q = query(
+        collection(db, "teacherSubscriptions"),
+        where("status", "==", status)
+    );
+
+    onSnapshot(q, async (snapshot) => {
+        container.innerHTML = "";
+
+        updatePaymentStats();
+
+        if (snapshot.empty) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <span class="material-icons">
+                        swap_horiz
+                    </span>
+                    <p>No ${status} payments</p>
+                </div>
+            `;
+            return;
+        }
+
+        snapshot.forEach(docSnap => {
+            const p = docSnap.data();
+            const card = document.createElement("div");
+            card.className = "payment-card";
+            card.innerHTML = `
+                <div class="payment-top">
+                    <div>
+                        <h3>${p.paymentName}</h3>
+                        <p>${p.plan}</p>
+                        <small>Ref: ${p.paymentReference || "N/A"}</small>
+                    </div>
+                    
+                    <div class="amount">TZS ${p.amount}</div>
+                </div>
+                
+                <div class="payment-meta">
+                    <p>Phone: ${p.paymentNumber || "N/A"}</p>
+                    <p>Account Name: ${p.paymentName || "N/A"}</p>
+                    <p>
+                        Date: ${
+                            p.createdAt
+                            ? new Date(
+                                p.createdAt.seconds * 1000
+                            ).toLocaleDateString()
+                            : "-"
+                        }
+                    </p>
+                </div>
+                
+                <div class="payment-actions">
+                    ${
+                        status === "pending"
+                        ? `
+                            <button class="approve-btn">
+                                Approve
+                            </button>
+                            
+                            <button class="reject-btn">
+                                Reject
+                            </button>
+                        `
+                        : `
+                            <span class="status-tag ${status}">
+                                ${status}
+                            </span>
+                        `
+                    }
+                </div>
+            `;
+
+            if (status === "pending") {
+                card.querySelector(".approve-btn")
+                .onclick = () => 
+                    approvePayment(docSnap.id, p);
+
+                card.querySelector(".reject-btn")
+                .onclick = () => 
+                    rejectPayment(docSnap.id, p);
+            }
+
+            container.appendChild(card);
+        });
+    });
 }
 
 function loadSubscriptionsPage() {
@@ -580,7 +715,24 @@ function loadSubscriptionsPage() {
 
             <div class="subs-header">
                 <h2>Teacher Subscriptions</h2>
-                <p>Manage trials, payments & access control</p>
+                <p>Manage teacher access and subscription status</p>
+            </div>
+
+            <div id="subsStats" class="subs-stats">
+                <div class="stat-card">
+                    <h3 id="activeTeachers">0</h3>
+                    <p>Active</p>
+                </div>
+
+                <div class="stat-card">
+                    <h3 id="trialTeachers">0</h3>
+                    <p>Free Trial</p>
+                </div>
+
+                <div class="stat-card">
+                    <h3 id="expiredTeachers">0</h3>
+                    <p>Expired</p>
+                </div>
             </div>
 
             <div id="subsList" class="subs-list"></div>
@@ -593,223 +745,194 @@ function loadSubscriptionsPage() {
 
 function listenTeacherSubscriptions() {
 
-    const list = document.getElementById("subsList");
+    const container = document.getElementById("subsList");
 
-    onSnapshot(query(collection(db, "users"), where("role", "==", "teacher")), (snapshot) => {
+    onSnapshot(query(collection(db, "users"), where("role", "==", "teacher")),
+    snapshot => {
 
-        list.innerHTML = "";
+        container.innerHTML = "";
 
-        if (snapshot.empty) {
-            list.innerHTML = `
-                <div class="empty-state">
-                    <span class="material-icons">school</span>
-                    <h3>No Teachers Found</h3>
-                    <p>Teachers will appear here once they register</p>
-                </div>
-            `;
-            return;
-        }
+        let active = 0;
+        let pending = 0;
+        let expired = 0;
 
         snapshot.forEach(docSnap => {
 
-            const t = docSnap.data();
-            const teacherId = docSnap.id;
+            const teacher = docSnap.data();
+            const id = docSnap.id;
 
-            const status = getTeacherStatus(t);
+            const now = new Date();
+            const end = teacher.subscriptionEnd?.toDate?.();
+
+            const isActive =
+                teacher.accountAccess !== "restricted" &&
+                end &&
+                now < end;
+
+            if (teacher.subscriptionStatus === "pending") pending++;
+            else if (isActive) active++;
+            else expired++;
 
             const card = document.createElement("div");
             card.className = "teacher-sub-card";
 
             card.innerHTML = `
-                <div class="teacher-top">
+                <div class="teacher-sub-top">
 
-                    <img src="${t.photoURL || 'default.jpeg'}" class="avatar"/>
-
-                    <div>
-                        <h3>${t.username || "Teacher"}</h3>
-                        <p>${t.username || "No payment name"}</p>
-                        <small>${t.number || "No number"}</small>
+                    <div class="teacher-profile">
+                        <img src="${teacher.photoURL || 'default.jpeg'}" class="teacher-avatar">
+                        <div>
+                            <h3>${teacher.username || "Teacher"}</h3>
+                            <p>${teacher.email || ""}</p>
+                        </div>
                     </div>
 
-                    <span class="status ${status.class}">
-                        ${status.label}
+                    <span class="subs-status ${isActive ? "active" : "expired"}">
+                        ${isActive ? "active" : "expired"}
                     </span>
 
                 </div>
 
-                <div class="teacher-meta">
-                    <p><b>Subscription:</b> ${t.subscriptionStatus || "trial"}</p>
-                    <p><b>Ends:</b> ${formatDate(t.subscriptionEnd)}</p>
+                <div class="teacher-sub-details">
+                    <div>
+                        <small>Plan</small>
+                        <strong>${teacher.subscriptionPlan || "None"}</strong>
+                    </div>
+
+                    <div>
+                        <small>Access</small>
+                        <strong>${teacher.accountAccess || "restricted"}</strong>
+                    </div>
                 </div>
 
-                <div class="teacher-actions">
+                <div class="teacher-sub-actions">
 
-                    ${
-                        t.status === "pending"
-                        ? `<button class="approve">Approve Payment</button>`
-                        : ""
-                    }
+                    <button class="toggle-btn">
+                        ${teacher.status === "suspended" ? "Activate" : "Suspend"}
+                    </button>
 
-                    ${
-                        t.status === "active"
-                        ? `<button class="suspend">Suspend</button>`
-                        : ""
-                    }
-
-                    ${
-                        t.status === "suspended"
-                        ? `<button class="reactivate">Reactivate</button>`
-                        : ""
-                    }
-
-                    <button class="history">View History</button>
+                    <button class="history-btn">View History</button>
 
                 </div>
             `;
 
-            // ACTIONS
-            const approveBtn = card.querySelector(".approve");
-            const suspendBtn = card.querySelector(".suspend");
-            const reactivateBtn = card.querySelector(".reactivate");
-            const historyBtn = card.querySelector(".history");
+            card.querySelector(".toggle-btn").onclick =
+                () => toggleTeacherStatus(id, teacher);
 
-            if (approveBtn) {
-                approveBtn.onclick = async () => {
-                    await updateDoc(doc(db, "users", teacherId), {
+            card.querySelector(".history-btn").onclick =
+                () => openTeacherHistory(id, teacher);
 
-                        status: "active",
-                        subscriptionStatus: "active",
-
-                        subscriptionStart: Timestamp.now(),
-
-                        subscriptionEnd: Timestamp.fromDate(
-                            new Date(
-                                Date.now() + 30 * 24 * 60 * 60 * 1000
-                            )
-                        )
-                    });
-                };
-            }
-
-            if (suspendBtn) {
-                suspendBtn.onclick = async () => {
-                    await updateDoc(doc(db, "users", teacherId), {
-                        status: "suspended"
-                    });
-                };
-            }
-
-            if (reactivateBtn) {
-                reactivateBtn.onclick = async () => {
-                    await updateDoc(doc(db, "users", teacherId), {
-                        status: "active"
-                    });
-                };
-            }
-
-            if (historyBtn) {
-                historyBtn.onclick = () => {
-                    loadTeacherSubscriptionHistory(teacherId);
-                };
-            }
-
-            list.appendChild(card);
+            container.appendChild(card);
         });
+
+        document.getElementById("activeTeachers").textContent = active;
+        document.getElementById("pendingTeachers").textContent = pending;
+        document.getElementById("expiredTeachers").textContent = expired;
     });
 }
 
-function getTeacherStatus(t) {
+async function toggleTeacherStatus(teacherId, teacher) {
 
-    if (t.status === "suspended") {
-        return { label: "Suspended", class: "danger" };
-    }
+    const suspended = teacher.status === "suspended";
 
-    if (t.subscriptionStatus === "trial") {
-        return { label: "Free Trial", class: "warning" };
-    }
+    await updateDoc(doc(db, "users", teacherId), {
+        status: suspended ? "active" : "suspended",
+        accountAccess: suspended ? "active" : "restricted"
+    });
 
-    if (t.subscriptionStatus === "active") {
-        return { label: "Subscribed", class: "success" };
-    }
-
-    if (t.subscriptionStatus === "ended") {
-        return { label: "Ended", class: "danger" };
-    }
-
-    return { label: "Unknown", class: "gray" };
+    showToast(suspended ? "Teacher activated" : "Teacher suspended");
 }
 
-async function loadTeacherSubscriptionHistory(teacherId) {
+async function openTeacherHistory(teacherId, teacher) {
 
     const content = document.getElementById("contentArea");
-
-    const q = query(
-        collection(db, "teacherSubscriptions"),
-        where("teacherId", "==", teacherId)
-    );
-
-    const snap = await getDocs(q);
 
     content.innerHTML = `
         <div class="history-page">
 
-            <div class="history-header">
-                <span class="material-icons back-btn">arrow_back</span>
-                <h2>Subscription History</h2>
+            <div class="page-header">
+                <button id="backBtn">
+                    <span class="material-icons back-btn">
+                        arrow_back_ios
+                    </span>
+                </button>
+                <h2>
+                    ${teacher.username}
+                </h2>
             </div>
 
-            <div class="history-list"></div>
+            <div 
+                id="historyList"
+                class="history-list">
+            </div>
         </div>
     `;
 
-    document.querySelector(".back-btn").onclick = () => {
+    document.getElementById("backBtn").onclick = () => {
         loadSubscriptionsPage();
     };
 
-    const list = document.querySelector(".history-list");
-
-    snap.forEach(doc => {
-
-        const h = doc.data();
-
-        const item = document.createElement("div");
-        item.className = "history-item";
-
-        item.innerHTML = `
-            <p><b>Plan:</b> ${h.plan}</p>
-            <p><b>Status:</b> ${h.status}</p>
-            <p><b>Amount:</b> ${h.amount}</p>
-        `;
-
-        list.appendChild(item);
-    });
+    loadTeacherHistory(
+        teacherId
+    );
 }
 
-function formatDate(timestamp) {
+async function loadTeacherHistory(teacherId){
+    const container = document.getElementById("historyList");
 
-    if (!timestamp) return "Not set";
+    onSnapshot(
+        query(
+            collection(
+                db, 
+                "teacherSubscriptions"
+            ),
+            where(
+                "teacher",
+                "==",
+                teacherId
+            )
+        ),
+        snapshot => {
+            container.innerHTML = "";
 
-    // Firestore Timestamp support
-    if (timestamp.toDate) {
-        const date = timestamp.toDate();
-        return date.toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric"
-        });
-    }
+            if (snapshot.empty) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <span class="material-icons">
+                            history
+                        </span>
+                        <p>
+                            No subscription history
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+            snapshot.forEach(docSnap => {
+                const sub = docSnap.data();
 
-    // Normal JS date fallback
-    const date = new Date(timestamp);
-    if (isNaN(date.getTime())) return "Invalid date";
-
-    return date.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric"
-    });
+                container.innerHTML += `
+                    <div class="history-card">
+                        <h3>
+                            ${sub.planName}
+                        </h3>
+                        
+                        <p>
+                            ${sub.amount || 0} TZS
+                        </p>
+                        
+                        <span class="
+                            history-status
+                            ${sub.status}
+                        ">
+                            ${sub.status}
+                        </span>
+                    </div>
+                `;
+            });
+        }
+    );
 }
-
 
 function showToast(message, type = "success") {
     const old = 
@@ -852,6 +975,90 @@ function showToast(message, type = "success") {
             toast.remove();
         }, 300);
     }, 3000)
+}
+
+async function approvePayment(subscriptionId, sub) {
+
+    const now = new Date();
+
+    let durationDays = 30;
+
+    if (sub.planId === "starter") durationDays = 30;
+    if (sub.planId === "professional") durationDays = 60;
+
+    const expiry = new Date();
+    expiry.setDate(expiry.getDate() + durationDays);
+
+    // 1. update subscription request
+    await updateDoc(doc(db, "teacherSubscriptions", subscriptionId), {
+        status: "approved",
+        approvedAt: serverTimestamp(),
+        durationDays
+    });
+
+    // 2. update teacher account (SINGLE SOURCE RULE)
+    await updateDoc(doc(db, "users", sub.teacherId), {
+
+        subscriptionPlan: sub.planName,
+        subscriptionPlanId: sub.planId,
+
+        subscriptionStatus: "active",
+        accountAccess: "active",
+        status: "active",
+
+        subscriptionStart: Timestamp.fromDate(now),
+        subscriptionEnd: Timestamp.fromDate(expiry)
+    });
+
+    // 3. ledger
+    await addDoc(collection(db, "teacherBillingLedger"), {
+        teacherId: sub.teacherId,
+        planId: sub.planId,
+        planName: sub.planName,
+        amount: sub.amount,
+        status: "approved",
+        createdAt: serverTimestamp(),
+        startDate: Timestamp.fromDate(now),
+        endDate: Timestamp.fromDate(expiry)
+    });
+
+    showToast("Subscription approved successfully");
+}
+
+async function rejectPayment(subscriptionId, sub) {
+
+    await updateDoc(doc(db, "teacherSubscriptions", subscriptionId), {
+        status: "rejected",
+        rejectedAt: serverTimestamp()
+    });
+
+    await updateDoc(doc(db, "users", sub.teacherId), {
+        subscriptionStatus: "expired",
+        accountAccess: "restricted",
+        status: "active"
+    });
+
+    showToast("Subscription rejected", "error");
+}
+
+function updatePaymentStats() {
+    onSnapshot(collection(db, "teacherSubscriptions"), snap => {
+        let pending = 0;
+        let approved = 0;
+        let rejected = 0;
+
+        snap.forEach(doc => {
+            const s = doc.data().status;
+
+            if (s === "pending") pending++;
+            if (s === "approved") approved++;
+            if (s === "rejected") rejected++;
+        });
+
+        document.getElementById("pendingCount").textContent = pending;
+        document.getElementById("approvedCount").textContent = approved;
+        document.getElementById("rejectedCount").textContent = rejected;
+    });
 }
 
 async function activateTeacherFreeTrials() {

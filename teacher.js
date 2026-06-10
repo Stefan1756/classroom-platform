@@ -18,7 +18,8 @@ import {
     getDoc,
     updateDoc,
     doc} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getUser, getUserData } from "./core/auth.js";
+import { getUserData, getAuthUser } from "./core/auth.js";
+import { requireUser, teacherHasAccess, getSubscriptionState, getCurrentUserDoc, getCachedSubscription } from "./core/session.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDq_02L2kHPr5jgjblWk_Vrs_JcRrjSBdA",
@@ -34,52 +35,9 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
-
+let currentState = null;
 const navItems = document.querySelectorAll(".nav-item");
 const contentArea = document.getElementById("contentArea");
-
-
-async function checkTeacherSubscriptionAccess() {
-    const user = auth.currentUser;
-
-    if (!user) return false;
-
-    const userRef = doc(db, "users", user.uid);
-    const userSnap = await getDoc(userRef);
-
-    if (!userSnap.exists()) return false;
-
-    const data = userSnap.data();
-
-    const now = new Date();
-
-    let expired = false;
-
-    if (data.subscriptionEnd?.toDate) {
-        expired = data.subscriptionEnd.toDate() < now;
-    }
-
-    // FREE ACCESS EXPIRED
-    if (
-        data.subscriptionStatus !== "active" ||
-        expired
-    ) {
-
-        await updateDoc(userRef, {
-            subscriptionStatus: "expired",
-            accountAccess: "restricted"
-        });
-
-        return false;
-    }
-
-    // ACTIVE ACCESS
-    await updateDoc(userRef, {
-        accountAccess: "active"
-    });
-
-    return true;
-}
 
 function loadPage(page) {
     contentArea.innerHTML = "";
@@ -1944,7 +1902,7 @@ function renderDashboardUI(user) {
         </div>
     `;
     document.getElementById("openWalletPage").onclick = () => {
-        loadPage("wallet");
+        loadPage("subscription");
     }
 }
 
@@ -2311,37 +2269,35 @@ function updateChart(students, engagement) {
     weeklyChart.update();
 }
 
+export function canAccessApp(state) {
+
+    if (!canAccessApp(currentState)) {
+            loadPage("subscription");
+        }
+
+    return state?.active === true;
+}
 
 navItems.forEach(item => {
     item.addEventListener("click", async () => {
 
         const page = item.dataset.page;
 
-        const hasAccess =
-            await checkTeacherSubscriptionAccess();
+        const state = currentState ?? getCachedSubscription();
 
-        // allow subscription page always
-        if (!hasAccess && page !== "subscription") {
-
-            showToast(
-                "Your subscription has expired",
-                "error"
-            );
-
+        if (!state?.active && page !== "subscription") {
+            showToast("Subscription inactive", "error");
             loadPage("subscription");
-
             return;
         }
 
-        navItems.forEach(nav =>
-            nav.classList.remove("active")
-        );
-
+        navItems.forEach(n => n.classList.remove("active"));
         item.classList.add("active");
 
         loadPage(page);
     });
 });
+
 
 async function deleteClass(classId) {
     try {
@@ -2356,435 +2312,6 @@ async function deleteClass(classId) {
     } catch (err) {
         console.error("Delete failed:", err);
     }
-}
-
-async function loadWalletOverview() {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
-
-    const earningsRef = collection(db, "teacherEarnings");
-    const withdrawRef = collection(db, "withdrawRequests");
-
-    const earningsSnap = await getDocs(
-        query(earningsRef, where("teacherId", "==", currentUser.uid))
-    );
-
-    const withdrawSnap = await getDocs(
-        query(withdrawRef, where("teacherId", "==", currentUser.uid))
-    );
-
-    let totalEarnings = 0;
-    let pending = 0;
-    let withdrawn = 0;
-
-    earningsSnap.forEach(docSnap => {
-        const e = docSnap.data();
-        totalEarnings += Number(e.amount || 0);
-    });
-
-    withdrawSnap.forEach(docSnap => {
-        const w = docSnap.data();
-
-        const amount = Number(w.amount || 0);
-
-        if (w.status === "pending") {
-            pending += amount;
-        }
-
-        if (w.status === "paid") {
-            withdrawn += amount;
-        }
-    });
-
-    const available = totalEarnings - pending - withdrawn;
-
-    const balanceEl = document.getElementById("walletBalance");
-    const pendingEl = document.getElementById("pendingBalance");
-    const withdrawnEl = document.getElementById("withdrawnBalance");
-
-    if (balanceEl) balanceEl.textContent = `TZS ${available.toLocaleString()}`;
-    if (pendingEl) pendingEl.textContent = `TZS ${pending.toLocaleString()}`;
-    if (withdrawnEl) withdrawnEl.textContent = `TZS ${withdrawn.toLocaleString()}`;
-
-    const container = document.getElementById("teacherEarningsList");
-    if (!container) return;
-
-    container.innerHTML = "";
-
-    if (earningsSnap.empty) {
-        container.innerHTML = `
-            
-            <div class="wallet-empty-state">
-            
-                <div class="wallet-empty-icon">
-                    <span class="material-icons">
-                        payments
-                    </span>
-                </div>
-                
-                <h3>
-                    No Earnings Yet
-                </h3>
-                
-                <p>
-                    Your subscription revenue and payouts
-                    will appear here once students begin
-                    enrolling through your classes.
-                </p>
-                
-            </div>
-            
-        `;
-        return;
-    }
-
-    earningsSnap.forEach(docSnap => {
-        const e = docSnap.data();
-
-        const item = document.createElement("div");
-
-        item.className = "wallet-earning-item";
-
-        item.innerHTML = `
-            <div>
-            
-                <strong>
-                    ${e.studentName}
-                </strong>
-                
-                <p>
-                    ${e.subscriptionPlan}
-                </p>
-                
-            </div>
-            
-            <h4>
-                +TZS ${Number(e.amount || 0).toLocaleString()}
-            </h4>
-        `;
-        container.appendChild(item);
-    });
-}
-
-function loadWithdrawPage() {
-    contentArea.innerHTML = `
-    
-    <div class="withdraw-page">
-    
-        <div class="withdraw-header">
-        
-            <button id="backWalletBtn">
-                <span class="material-icons">
-                    arrow_back
-                </span>
-            </button>
-            
-            <h2>Withdraw Funds</h2>
-            
-        </div>
-        
-        <div class="withdraw-balance-card">
-        
-            <p>Available Balance</p>
-            
-            <h1 id="withdrawAvailableBalance">
-                TZS 0
-            </h1>
-            
-        </div>
-        
-        <div class="withdraw-form-card">
-        
-            <h3>Withdraw Details</h3>
-            
-            <div class="input-group">
-            
-                <label>Full Name</label>
-                
-                <input
-                    type="text"
-                    id="withdrawName"
-                    placeholder="Enter full name"
-                />
-                
-            </div>
-            
-            <div class="input-group">
-            
-                <label>Receiving Number</label>
-                
-                <input
-                    type="text"
-                    id="withdrawNumber"
-                    placeholder="Mobile number / Bank Number"
-                />
-                
-            </div>
-            
-            <div class="input-group">
-            
-                <label>Amount</label>
-                
-                <input
-                    type="number"
-                    id="withdrawAmount"
-                    placeholder="Minimum TZS 10000"
-                />
-                
-            </div>
-            
-            <div class="withdraw-rules">
-            
-                <div class="rule-item">
-                    <span class="material-icons">
-                        info
-                    </span>
-                
-                    <p>
-                        Minimum withdraw is TZS 10,000
-                    </P>
-                </div>
-                
-                <div class="rule-item">
-                    <span class="material-icons">
-                        percent
-                    </span>
-                
-                    <p>
-                        Transaction fee is 10%
-                        per withdraw
-                    </P>
-                </div>
-                
-                <div class="rule-item">
-                    <span class="material-icons">
-                        schedule
-                    </span>
-                
-                    <p>
-                        Withdraw are manually
-                        verified by admin. Payments are done only on Thursday
-                    </P>
-                </div>
-
-            </div>
-            
-            <div class="withdraw-summary">
-            
-                <div>
-                    <small>Transaction Fee</small>
-                    <strong id="feePreview">
-                        TZS 0
-                    </strong>
-                </div>
-                
-                <div>
-                    <small>You Receive</small>
-                    <strong id="receivePreview">
-                        TZS 0
-                    </strong>
-                </div>
-                
-            </div>
-            
-            <button class="withdraw-btn" id="submitWithdrawBtn">
-                Withdraw
-            </button>
-        
-        </div>
-        
-    </div>
-    
-    `;
-    document.getElementById("backWalletBtn").onclick = () => {
-        loadPage("wallet");
-    };
-
-    loadWithdrawBalance();
-}
-
-async function loadWithdrawBalance() {
-    const currentUser = auth.currentUser;
-
-    if (!currentUser) return;
-
-    const earningsSnap = await getDocs(
-        query(
-        collection(db, "teacherEarnings"),
-        where("teacherId", "==", currentUser.uid)
-        )
-    );
-
-    let totalEarnings = 0;
-
-    earningsSnap.forEach(docSnap => {
-        totalEarnings += Number(
-            docSnap.data().amount || 0
-        );
-    });
-
-    const requestsSnap = await getDocs(
-        query(
-            collection(db, "withdrawRequests"),
-            where("teacherId", "==", currentUser.uid)
-        )
-    );
-
-    let pendingAmount = 0;
-    let withdrawnAmount = 0;
-
-    requestsSnap.forEach(docSnap => {
-        const data = docSnap.data();
-
-        if (data.status === "pending") {
-            pendingAmount += Number(
-                data.amount || 0
-            );
-        }
-
-        if (data.status === "paid") {
-            withdrawnAmount += Number(
-                data.amount || 0
-            );
-        }
-    });
-
-    const availableBalance = totalEarnings - pendingAmount- withdrawnAmount;
-
-    document.getElementById("withdrawAvailableBalance").textContent =
-        `TZS ${availableBalance.toLocaleString()}`;
-
-    const amountInput = document.getElementById("withdrawAmount");
-
-    amountInput.addEventListener("input", () => {
-        const amount = Number(amountInput.value) || 0;
-
-        const fee = Math.floor(amount * 0.1);
-
-        const receive = amount - fee;
-
-        document.getElementById("feePreview").textContent = `TZS ${fee.toLocaleString()}`;
-
-        document.getElementById("receivePreview").textContent = `TZS ${receive.toLocaleString()}`;
-    });
-
-    document.getElementById("submitWithdrawBtn").onclick = () => {
-        submitWithdrawRequest();
-
-    document.getElementById("withdrawAmount").value = "";
-    };
-}
-
-async function submitWithdrawRequest() {
-    const currentUser = auth.currentUser;
-
-    if (!currentUser) return;
-
-    const name =
-        document.getElementById(
-            "withdrawName"
-        ).value.trim();
-
-    const number =
-        document.getElementById(
-            "withdrawNumber"
-        ).value.trim();
-
-    const amount =
-        Number(
-            document.getElementById(
-            "withdrawAmount"
-        ).value
-    );
-
-    const fee = Math.floor(amount * 0.10);
-
-    const receiveAmount = amount - fee;
-
-    const earningsSnap = await getDocs(
-        query(
-            collection(db, "teacherEarnings"),
-            where("teacherId", "==", currentUser.uid)
-        )
-    );
-
-    let totalEarnings = 0;
-
-    earningsSnap.forEach(docSnap => {
-        totalEarnings += Number(docSnap.data().amount || 0);
-    });
-
-    const requestsSnap = await getDocs(
-        query(
-            collection(db, "withdrawRequests"),
-            where("teacherId", "==", currentUser.uid)
-        )
-    );
-
-    let pendingAmount = 0;
-    let withdrawAmount = 0;
-
-    requestsSnap.forEach(docSnap => {
-        const data = docSnap.data();
-
-        if (data.status === "pending") {
-            pendingAmount += Number(data.amount || 0);
-        }
-
-        if (data.status === "paid") {
-            withdrawAmount += Number(data.amount || 0);
-        }
-    });
-
-    const usableBalance = totalEarnings - pendingAmount - withdrawAmount;
-
-    if (!name || !number || !amount) {
-        return showToast(
-            "fill all fields",
-            "error"
-        );
-    }
-
-    if (!amount || amount <= 0) {
-        return showToast(
-            "Enter valid withdraw amount",
-            "error"
-        );
-    }
-
-    if (amount < 10000) {
-        return showToast(
-            "Minimum withdraw is TZS 10,000",
-            "warning"
-        );
-    }
-
-    if (amount > usableBalance ) {
-        return showToast(
-            `Insufficient balance. Available balance is TZS ${usableBalance.toLocaleString()}`,
-            "error"
-        );
-    }
-
-    await addDoc(
-        collection(db, "withdrawRequests"),
-        {
-            teacherId: currentUser.uid,
-            teacherName: name,
-            receiverNumber: number,
-            amount,
-            fee,
-            receiveAmount,
-            status: "pending",
-            createdAt: serverTimestamp()
-        }
-    );
-
-    
-
-    showToast("Request submitted");
-
-    loadWalletOverview();
 }
 
 function showToast(message, type = "success") {
@@ -2830,203 +2357,39 @@ function showToast(message, type = "success") {
     }, 3000)
 }
 
-let currentHistoryPage = 1;
-
-async function loadHistoryPage(page = 1) {
-    currentHistoryPage = page;
-
-    contentArea.innerHTML = `
-
-        <div class="history-page">
-        
-            <div class="wallet-header-card">
-
-            <button id="backWalletBtn">
-                <span class="material-icons">
-                    arrow_back
-                </span>
-            </button>
-            
-                <div>
-                    <p class="mini-label">
-                        Wallet Activity
-                    </p>
-                    
-                    <h2>
-                        Withdraw History
-                    </h2>
-                </div>
-                
-            </div>
-            
-            <div
-                id="historyList"
-                class="history-list"
-            ></div>
-            
-            <div
-                id="historyPagination"
-                class="history-pagination"
-            ></div>
-            
-        </div>
-    
-    `;
-    document.getElementById("backWalletBtn").onclick = () => {
-        loadPage("wallet");
-    };
-    
-    renderWithdrawHistory(page);
-}
-
-async function renderWithdrawHistory(page = 1) {
-    
-    const historyList = document.getElementById("historyList");
-
-    const pagination = document.getElementById("historyPagination");
-
-    const currentUser = auth.currentUser;
-
-    if (!currentUser) return;
-
-    const q = query(
-        collection(db, "withdrawRequests"),
-        where("teacherId", "==", currentUser.uid)
-    );
-
-    const snap = await getDocs(q);
-
-    let history = snap.docs.map(docSnap => ({
-        id: docSnap.id,
-        ...docSnap.data()
-    }));
-
-    history.sort((a, b) => {
-
-        const aTime = a.createdAt?.seconds || 0;
-
-        const bTime = b.createdAt?.seconds || 0;
-
-        return bTime - aTime;
-    });
-
-    historyList.innerHTML = "";
-
-    if (history.length === 0) {
-
-        historyList.innerHTML = `
-              
-            <div class="history-empty">
-            
-                <span class="material-icons">swap_horiz</span>
-                
-                <h3>No Transactions Yet</h3>
-                
-                <p>
-                    Your withdraw and payout history
-                    will appear here
-                </p>
-                
-            </div>
-            
-        `;
-
-        pagination.innerHTML = "";
-
-        return;
-    }
-
-    const perPage = 5;
-
-    const start = (page - 1) * perPage;
-
-    const end = start + perPage;
-
-    const paginated = history.slice(start, end);
-
-    paginated.forEach(item => {
-
-        const amount = Number(item.amount || 0);
-
-        const status = item.status || "pending";
-
-        const fee = Number(item.fee || 0);
-
-        const card = document.createElement("div");
-
-        card.className = "history-card";
-
-        card.innerHTML = `
-        
-            <div class="history-top">
-            
-                <div>
-                
-                    <h4>TZS ${amount.toLocaleString()}</h4>
-                    
-                    <small>Fee: TZS ${fee.toLocaleString()}</small>
-                    
-                </div>
-                
-                <span class="history-status ${status}">${status}</span>
-                
-            </div>
-            
-            <div class="history-bottom">
-            
-                <small>${item.teacherName || ""}</small>
-                
-                <small>${item.receiverNumber || ""}</small>
-                
-            </div>
-            
-        `;
-
-        historyList.appendChild(card);
-    });
-
-    renderPagination(
-        history.length,
-        perPage,
-        page
-    );
-}
-
-function renderPagination(total, perPage, page) {
-
-    const pagination = document.getElementById("historyPagination");
-
-    const totalPages = Math.ceil(total / perPage);
-
-    pagination.innerHTML = "";
-
-    if (!totalPages <= 1) return;
-
-    for (let i = 1; i <= totalPages; i++) {
-        const btn = document.createElement("button");
-
-        btn.className =
-            i === page
-            ? "page-btn active"
-            : "page-btn";
-        
-        btn.textContent = i;
-
-        btn.onclick = () => {
-            loadHistoryPage(i);
-        };
-
-        pagination.appendChild(btn);
-    }
-}
-
 async function loadSubscriptionPage() {
     const content = document.getElementById("contentArea");
 
     const user = auth.currentUser;
 
-    const userSnap = await getDoc(doc(db, "users", user.uid));
-    const teacher = userSnap.data();
+if (!user) {
+    showToast("Session expired. Please login again", "error");
+    return;
+}
+
+const userSnap = await getDoc(doc(db, "users", user.uid));
+
+if (!userSnap.exists()) {
+    showToast("User profile not found", "error");
+    return;
+}
+
+const teacher = {
+    id: userSnap.id,
+    ...userSnap.data()
+};
+
+const state = getSubscriptionState(teacher);
+    const daysRemaining =
+    teacher.endDate
+        ? Math.max(
+            0,
+            Math.ceil(
+                (state.endDate - new Date()) /
+                (1000 * 60 * 60 * 24)
+            )
+        )
+        : 0;
 
     content.innerHTML = `
         <div class="subscription-page">
@@ -3045,32 +2408,25 @@ async function loadSubscriptionPage() {
                     <div>
                         <h3>
                             ${
-                                teacher.subscriptionStatus === "active"
-                                ? "Premium Plan"
-
-                                : teacher.subscriptionStatus === "trial"
-                                ? "Free Trial"
-
-                                : "No Active Plan"
+                                state.subscriptionPlan || "No Active Plan"
                             }
                         </h3>
 
                         <p>
                             ${
-                                teacher.subscriptionStatus === "active"
+                                state.hasActiveSubscription
                                 ? "Subscription active"
-
-                                : teacher.subscriptionStatus === "trial"
-                                ? "Trial running"
-
-                                : "Subscription required"
+                                : "Subscription expired"
                             }
                         </p>
                     </div>
 
                     <span class="plan-status 
-                        ${teacher.subscriptionStatus}">
-                        ${teacher.subscriptionStatus || "inactive"}
+                        ${state.status}">
+                        ${state.hasActiveSubscription && state.endDate &&
+                            new Date() < state.endDate
+                            ? "active"
+                            : "expired"}
                     </span>
 
                 </div>
@@ -3083,7 +2439,15 @@ async function loadSubscriptionPage() {
 
                     <small>
                         Ends:
-                        ${formatDate(teacher.subscriptionEnd)}
+                        
+                        ${state.endDate
+                            ? state.endDate.toLocaleDateString()
+                            : "Not set"}
+                    </small>
+                    <br>
+
+                    <small>
+                        ${daysRemaining} days remaining
                     </small>
 
                 </div>
@@ -3098,7 +2462,7 @@ async function loadSubscriptionPage() {
 
                     <div class="plan-card">
                         <h4>Starter</h4>
-                        <h2>TZS 30,000</h2>
+                        <h2>TZS 10,000</h2>
                         <p>30 Days Access</p>
 
                         <ul>
@@ -3109,7 +2473,7 @@ async function loadSubscriptionPage() {
 
                         <button class="select-plan-btn"
                             data-plan="starter"
-                            data-price="30000">
+                            data-price="10000">
                             Select Plan
                         </button>
                     </div>
@@ -3120,7 +2484,7 @@ async function loadSubscriptionPage() {
                         </div>
 
                         <h4>Professional</h4>
-                        <h2>TZS 70,000</h2>
+                        <h2>TZS 30,000</h2>
                         <p>90 Days Access</p>
 
                         <ul>
@@ -3131,7 +2495,7 @@ async function loadSubscriptionPage() {
 
                         <button class="select-plan-btn"
                             data-plan="professional"
-                            data-price="70000">
+                            data-price="30000">
                             Select Plan
                         </button>
                     </div>
@@ -3177,52 +2541,14 @@ async function loadSubscriptionPage() {
                 </div>
 
             </div>
-
-            <div class="billing-history">
-
-                <div class="section-top">
-                    <h3>Billing History</h3>
-                </div>
-
-                <div id="billingHistoryList"></div>
-
-            </div>
-
         </div>
     `;
 
     setupPlanSelection();
     setupSubscriptionSubmission();
-    loadBillingHistory();
-}
-
-function formatDate(timestamp) {
-
-    if (!timestamp) return "Not set";
-
-    // Firestore Timestamp support
-    if (timestamp.toDate) {
-        const date = timestamp.toDate();
-        return date.toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric"
-        });
-    }
-
-    // Normal JS date fallback
-    const date = new Date(timestamp);
-    if (isNaN(date.getTime())) return "Invalid date";
-
-    return date.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric"
-    });
 }
 
 let selectedPlan = null;
-let selectedPrice = null;
 
 function setupPlanSelection() {
 
@@ -3232,13 +2558,29 @@ function setupPlanSelection() {
         btn.onclick = () => {
 
             document.querySelectorAll(".plan-card")
-            .forEach(c => c.classList.remove("selected"));
+            .forEach(card =>
+                card.classList.remove("selected")
+            );
 
             btn.closest(".plan-card")
             .classList.add("selected");
 
-            selectedPlan = btn.dataset.plan;
-            selectedPrice = btn.dataset.price;
+            selectedPlan = {
+
+                id: btn.dataset.plan,
+
+                name:
+                    btn.dataset.plan === "starter"
+                    ? "Starter"
+                    : "Professional",
+
+                amount: Number(btn.dataset.price),
+
+                duration:
+                    btn.dataset.plan === "starter"
+                    ? 30
+                    : 90
+            };
         };
     });
 }
@@ -3270,8 +2612,10 @@ async function setupSubscriptionSubmission() {
             collection(db, "teacherSubscriptions"),
             {
                 teacherId: user.uid,
-                plan: selectedPlan,
-                amount: Number(selectedPrice),
+                planName: selectedPlan.name,
+                planId: selectedPlan.id,
+                duration: selectedPlan.duration,
+                amount: selectedPlan.amount,
                 paymentName,
                 paymentNumber,
                 paymentReference,
@@ -3290,78 +2634,4 @@ async function setupSubscriptionSubmission() {
     };
 }
 
-async function loadBillingHistory() {
-
-    const user = auth.currentUser;
-
-    const list = document.getElementById("billingHistoryList");
-
-    const q = query(
-        collection(db, "teacherSubscriptions"),
-        where("teacherId", "==", user.uid)
-    );
-
-    onSnapshot(q, (snapshot) => {
-
-        list.innerHTML = "";
-
-        if (snapshot.empty) {
-
-            list.innerHTML = `
-                <div class="empty-state">
-                    <span class="material-icons">
-                        receipt_long
-                    </span>
-
-                    <p>No billing history yet</p>
-                </div>
-            `;
-
-            return;
-        }
-
-        snapshot.forEach(docSnap => {
-
-            const sub = docSnap.data();
-
-            const item = document.createElement("div");
-
-            item.className = "billing-item";
-
-            item.innerHTML = `
-                <div>
-                    <h4>${sub.plan}</h4>
-                    <p>
-                        ${formatDate(sub.createdAt)}
-                    </p>
-                </div>
-
-                <div class="billing-right">
-                    <strong>
-                        TZS ${sub.amount}
-                    </strong>
-
-                    <span class="billing-status ${sub.status}">
-                        ${sub.status}
-                    </span>
-                </div>
-            `;
-
-            list.appendChild(item);
-        });
-    });
-}
-
-(async () => {
-
-    const hasAccess =
-        await checkTeacherSubscriptionAccess();
-
-    if (!hasAccess) {
-        loadPage("subscription");
-        return;
-    }
-
-    loadPage("subscription");
-
-})();
+loadPage("subscription");
