@@ -136,14 +136,18 @@ async function loadDashboard() {
                     </div>
                 </div>
 
-                <div class="analytics-card">
-                    <div class="analytics-icon orange">
-                        <span class="material-icons">hourglass_top</span>
+                <div id="installBtn" class="analytics-card">
+                    <div id="installBtn" class="analytics-icon orange">
+                        <span class="material-icons">download</span>
                     </div>
 
                     <div>
-                        <h3 id="pendingTeachers">0</h3>
-                        <p>Pending Approval</p>
+                        <button id="installBtn" class="install-btn">
+                            <span class="material-icons">
+                                download
+                            </span>
+                            Install
+                        </button>
                     </div>
                 </div>
 
@@ -279,7 +283,6 @@ function loadDashboardStats() {
 
         document.getElementById("totalTeachers").textContent = teachers;
 
-        document.getElementById("pendingTeachers").textContent = pending;
     });
 
     onSnapshot(collection(db, "subscriptions"), (snapshot) => {
@@ -1084,7 +1087,7 @@ async function activateTeacherFreeTrials() {
         const endDate = new Date();
 
         endDate.setDate(
-            endDate.getDate() + 7
+            endDate.getDate() + 30
         );
 
         await updateDoc(
@@ -1110,4 +1113,5 @@ async function activateTeacherFreeTrials() {
 
     showToast("Free access activated");
 }
+
 loadPage("dashboard");
